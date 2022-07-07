@@ -14,12 +14,8 @@ library(sleepr)
 
 rm(list=ls())
 path<- "J:/rts/rts_activity/marcel/"
-<<<<<<< HEAD
-df <- fread(paste0(path, "bird_data_storage/tags_overview.csv"), key = "ring_ID")
-=======
-df <- fread(paste0(path, "bird_data_storage/tags_overview.csv"), key = "ID")
->>>>>>> abe01006376362d6ba60eae54ab4df36ad6b343e
 
+df <- fread(paste0(path, "bird_data_storage/tags_overview.csv"), key = "ring_ID")
 
 ################################################################################
 ################################################################################

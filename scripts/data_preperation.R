@@ -10,28 +10,16 @@ library(lubridate)
 library(tRackIT)
 
 rm(list=ls())
-<<<<<<< HEAD
 path<- "J:/rts/rts_activity/"
-=======
-path<- "J:/rts/rts_activity/marcel/"
->>>>>>> abe01006376362d6ba60eae54ab4df36ad6b343e
 
 #############################################################################################################################
 #### 1.1.   Save all 2021 A/P data in one folder (only once) ####
 
-<<<<<<< HEAD
 proj<- getProject(projroot = "J:/rts/2021/filter_tRackIT_2021/", plot=F) # filtered data 2021 (change path if needed)
 
 for(id in 1:nrow(proj$tags)){
-    print(proj$tags$ID[id])
+  print(proj$tags$ID[id])
   fls<-list.files(paste0("J:/rts/2021/bird_data_active_passive/filter_tRackIT_2021/data/individuals/", proj$tags$ID[id] ,"/classification/"), full.names=TRUE)
-=======
-proj<- getProject(projroot = "J:/rts/2021/filter_tRackIT_2021/", plot=F)
-
-for(id in 1:nrow(proj$tags)){
-    print(proj$tags$ID[id])
-  fls<-list.files(paste0("J:/rts/2021/filter_tRackIT_2021/data/individuals/", proj$tags$ID[id] ,"/classification/"), full.names=TRUE)
->>>>>>> abe01006376362d6ba60eae54ab4df36ad6b343e
   fls<- fls[fls %like% "aggregated"]
   
   lapply(fls, function(x){
@@ -39,37 +27,25 @@ for(id in 1:nrow(proj$tags)){
     name<- str_split(basename(x), "_aggregated")[[1]][1]
     fwrite(data,paste0(path, "birds_activity_1min_2021/", name, ".csv"))
   })
-  }
+}
 
 #############################################################################################################################
 #### 1.2.   Save all 2020 A/P data in one folder (only once) ####
 
-<<<<<<< HEAD
 tags <-read.csv("J:/rts/2020/birds_enddates_2020_tables/birds_2020_enddate_1104202222.csv") 
-=======
-tags <-read.csv("J:/rts/2020/birds_enddates_2020_tables/birds_2020_enddate_1104202222.csv")
->>>>>>> abe01006376362d6ba60eae54ab4df36ad6b343e
 tags <- tags %>% 
   filter(remove!="yes")
 
 
 for(id in 1:nrow(tags)){
   print(tags$ID_20[id])
-<<<<<<< HEAD
   fls<-list.files(paste0("J:/rts/2020/filter_tRackIT_2020/data/individuals/", tags$ID_20[id] ,"/classification/"), full.names=TRUE) # filtered data 2020 (change path if needed)
-=======
-  fls<-list.files(paste0("J:/rts/2020/filter_tRackIT_2020/data/individuals/", tags$ID_20[id] ,"/classification/"), full.names=TRUE)
->>>>>>> abe01006376362d6ba60eae54ab4df36ad6b343e
   fls<- fls[fls %like% "aggregated"]
   
   lapply(fls, function(x){
     data<-fread(x) 
     name<- str_split(basename(x), "_aggregated")[[1]][1]
-<<<<<<< HEAD
     fwrite(data,paste0(path, "bird_data_active_passive/birds_activity_1min_2020/", name, ".csv"))
-=======
-    fwrite(data,paste0(path, "birds_activity_1min_2020/", name, ".csv"))
->>>>>>> abe01006376362d6ba60eae54ab4df36ad6b343e
   })
 }
 
@@ -77,29 +53,17 @@ for(id in 1:nrow(tags)){
 #############################################################################################################################
 #### 1.3.   Save all 2019 A/P data in one folder (only once) ####
 
-<<<<<<< HEAD
 proj<- getProject(projroot = "J:/rts/2019/filter_tRackIT_2019_2/", plot=F) 
 
 for(id in 1:nrow(proj$tags)){
   print(proj$tags$ID[id])
   fls<-list.files(paste0("J:/rts/2019/filter_tRackIT_2019_2/data/individuals/", proj$tags$ID[id] ,"/classification/"), full.names=TRUE) # filtered data 2019 (change path if needed)
-=======
-proj<- getProject(projroot = "J:/rts/2019/filter_tRackIT_2019_2/", plot=F)
-
-for(id in 1:nrow(proj$tags)){
-  print(proj$tags$ID[id])
-  fls<-list.files(paste0("J:/rts/2019/filter_tRackIT_2019_2/data/individuals/", proj$tags$ID[id] ,"/classification/"), full.names=TRUE)
->>>>>>> abe01006376362d6ba60eae54ab4df36ad6b343e
   fls<- fls[fls %like% "aggregated"]
   
   lapply(fls, function(x){
     data<-fread(x) 
     name<- str_split(basename(x), "_aggregated")[[1]][1]
-<<<<<<< HEAD
     fwrite(data,paste0(path, "bird_data_active_passive/birds_activity_1min_2019/", name, ".csv"))
-=======
-    fwrite(data,paste0(path, "birds_activity_1min_2019/", name, ".csv"))
->>>>>>> abe01006376362d6ba60eae54ab4df36ad6b343e
   })
 }
 
@@ -116,11 +80,7 @@ for(i in 1:nrow(enddate)){
   
   print(enddate$ID[i])
   
-<<<<<<< HEAD
   fls<-paste0(path, "bird_data_active_passive/birds_activity_1min_", enddate$year[i], "/", enddate$ID[i] ,".csv")
-=======
-  fls<-paste0(path, "birds_activity_1min_", enddate$year[i], "/", enddate$ID[i] ,".csv")
->>>>>>> abe01006376362d6ba60eae54ab4df36ad6b343e
   
   lapply(fls, function(x){
     data<-fread(x) 
@@ -132,11 +92,7 @@ for(i in 1:nrow(enddate)){
 
 
 ## remove certain times from 210518_150077_40 (for now here in A/P data! redo this in raw data ASAP!) only once
-<<<<<<< HEAD
 df <-read.csv(paste0(path, "bird_data_active_passive/birds_activity_1min_2021/210518_150077_40.csv"))
-=======
-df <-read.csv(paste0(path, "birds_activity_1min_2021/210518_150077_40.csv"))
->>>>>>> abe01006376362d6ba60eae54ab4df36ad6b343e
 df<- df %>% 
   filter(timestamp > "2021-06-01 06:00")%>% 
   filter(timestamp < "2021-06-08 06:00" | timestamp > "2021-07-01 00:00")
@@ -155,11 +111,7 @@ write.csv(df, paste0(path, "birds_activity_1min_2021/210518_150077_40.csv"))
 
 #2019:
 
-<<<<<<< HEAD
 Data.file.list_2019=list.files(paste0(path,"bird_data_active_passive/birds_activity_1min_2019/"), full.names = TRUE) 
-=======
-Data.file.list_2019=list.files(paste0(path,"birds_activity_1min_2019/"), full.names = TRUE) 
->>>>>>> abe01006376362d6ba60eae54ab4df36ad6b343e
 
 tags_2019_1 <- plyr::ldply(Data.file.list_2019, function(x){
   data<- fread(x)
@@ -192,11 +144,7 @@ tags_2019_2 <- merge(tags_2019_1, meta_2019, by="ID", all.x=T)
 
 #2020:
 
-<<<<<<< HEAD
 Data.file.list_2020=list.files(paste0(path,"bird_data_active_passive/birds_activity_1min_2020/"), full.names = TRUE) 
-=======
-Data.file.list_2020=list.files(paste0(path,"birds_activity_1min_2020/"), full.names = TRUE) 
->>>>>>> abe01006376362d6ba60eae54ab4df36ad6b343e
 
 tags_2020_1 <- plyr::ldply(Data.file.list_2020, function(x){
   data<- fread(x)
@@ -229,11 +177,7 @@ tags_2020_2 <- merge(tags_2020_1, meta_2020, by="ID", all.x=T)
 
 # 2021:
 
-<<<<<<< HEAD
 Data.file.list_2021=list.files(paste0(path,"bird_data_active_passive/birds_activity_1min_2021/"), full.names = TRUE) 
-=======
-Data.file.list_2021=list.files(paste0(path,"birds_activity_1min_2021/"), full.names = TRUE) 
->>>>>>> abe01006376362d6ba60eae54ab4df36ad6b343e
 
 tags_2021_1 <- plyr::ldply(Data.file.list_2021, function(x){
   data<-data.table::fread(x)
@@ -288,8 +232,8 @@ metadata <- df %>%
 tags_all_2 <- tags_all_1 %>% 
   left_join(metadata, by=c("ring_ID", "date_capture")) %>% 
   mutate(time_total= (stop_datetime - start_datetime))
- 
- 
+
+
 ##########################################################################
 #### 2.3. out-filter faulty tags
 
@@ -298,8 +242,8 @@ tags_all_3 <- tags_all_2 %>%
   filter(ID!="150156_4_30_1") %>%  # Jay with missing nights
   filter(ID!="210610_150099_20") %>%    # buzzard 
   droplevels()
-  
-         
+
+
 write.csv(tags_all_3, paste0(path, "bird_data_storage/tags_overview.csv")) # will be used as "metadata" for rethomics package
 
 
@@ -444,7 +388,7 @@ df_1_min_all_meta_4 <- df_1_min_all_meta_3 %>%
 #  df_1_min_all_meta_4$sunset  <- sun$sunset
 #  df_1_min_all_meta_4$sunrise <- sun$sunrise
 #}
-  
+
 df_1_min_all_meta_4$data_ID<- seq(1:nrow(df_1_min_all_meta_4)) # get unique ID for each datapoint
 
 Lat<-50.844868
