@@ -13,7 +13,7 @@ library(sleepr)
 #devtools::install_github("rethomics/zeitgebr")
 
 rm(list=ls())
-path<- "J:/rts/rts_activity/marcel/"
+path<- "J:/rts/rts_activity/"
 
 df <- fread(paste0(path, "bird_data_storage/tags_overview.csv"), key = "ring_ID")
 
@@ -25,26 +25,51 @@ df <- fread(paste0(path, "bird_data_storage/tags_overview.csv"), key = "ring_ID"
 
 plot_list<- list()
 
-(p1<- df %>%
-  count(species_en, year) %>%
-  as.data.frame(.) %>% 
-  mutate(year=as.factor(year)) %>% 
-  mutate(species_en = fct_reorder(species_en, n)) %>% 
-  ggplot(. ,aes(y=species_en, x=n, fill=year,label = round(n,digits=1))) +
-  geom_bar(stat="identity")+
-  #geom_text(aes(y=species_en, label=year), vjust=0, 
-  #         color="white", size=3.5)+
-  scale_fill_brewer(palette="Paired")+
-  geom_text(size = 5, position = position_stack(vjust = 1.025))+
-  xlab("Count")+
-  ylab("Species")+
-  theme_minimal()+
-  theme(text = element_text(size=15),
-        axis.text.x = element_text(angle = 0, vjust = 1, hjust=0, face="bold"),
-        legend.title=element_blank(),
-        legend.position = c(0.9, 0.1),
-        legend.text = element_text(size=15))
+(p1.1<- df %>% 
+    count(species_en, year) %>%
+    as.data.frame(.) %>% 
+    mutate(year=as.factor(year)) %>% 
+    mutate(species_en = fct_reorder(species_en, n)) %>% 
+    ggplot(. ,aes(y=species_en, x=n, fill=year,label = round(n,digits=1))) +
+    geom_bar(stat="identity")+
+    #geom_text(aes(y=species_en, label=year), vjust=0, 
+    #         color="white", size=3.5)+
+    scale_fill_brewer(palette="Paired")+
+    ggtitle("Count of tagged birds \n(including repeated captures of Individuals)")+
+    geom_text(size = 5, position = position_stack(vjust = 1.025))+
+    xlab("Count")+
+    ylab("Species")+
+    theme_minimal()+
+    theme(text = element_text(size=15),
+          axis.text.x = element_text(angle = 0, vjust = 1, hjust=0, face="bold"),
+          legend.title=element_blank(),
+          legend.position = c(0.9, 0.1),
+          legend.text = element_text(size=15))
 )
+
+(p1.2<- df %>%
+    filter(!duplicated(.[["ring_ID"]])) %>% 
+    count(species_en, year) %>%
+    as.data.frame(.) %>% 
+    mutate(year=as.factor(year)) %>% 
+    mutate(species_en = fct_reorder(species_en, n)) %>% 
+    ggplot(. ,aes(y=species_en, x=n, fill=year,label = round(n,digits=1))) +
+    geom_bar(stat="identity")+
+    #geom_text(aes(y=species_en, label=year), vjust=0, 
+    #         color="white", size=3.5)+
+    scale_fill_brewer(palette="Paired")+
+    ggtitle("Count of tagged Individuals \n(some individuals were tagged two times)")+
+    geom_text(size = 5, position = position_stack(vjust = 1.025))+
+    xlab("Count")+
+    ylab("Species")+
+    theme_minimal()+
+    theme(text = element_text(size=15),
+          axis.text.x = element_text(angle = 0, vjust = 1, hjust=0, face="bold"),
+          legend.title=element_blank(),
+          legend.position = c(0.9, 0.1),
+          legend.text = element_text(size=15))
+)
+
 (p2<- df %>%
   count(family, year) %>%
   as.data.frame(.) %>% 
@@ -79,7 +104,7 @@ plot_list<- list()
   theme_bw()+
   theme(panel.border = element_blank(), panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))+
-  xlab("Duration of transmitted signa [days]") + 
+  xlab("Duration of transmitted signal [days]") + 
   ylab("Species")
 )
 (p4<- df %>% 
@@ -131,13 +156,14 @@ plot_list<- list()
     ggtitle("Tag duration 2021")
 )
 
-plot_list[[1]]<- p1
-plot_list[[2]]<- p2
-plot_list[[3]]<- p3
-plot_list[[4]]<- p4
-plot_list[[5]]<- p5
-plot_list[[6]]<- p6
-plot_list[[7]]<- pweek2 # see further down in script!!!
+plot_list[[1]]<- p1.1
+plot_list[[2]]<- p1.2
+plot_list[[3]]<- p2
+plot_list[[4]]<- p3
+plot_list[[5]]<- p4
+plot_list[[6]]<- p5
+plot_list[[7]]<- p6
+plot_list[[8]]<- pweek2 # see further down in script!!!
 
 
 ggsave(filename = paste0(path, "plots/data_overview/" , "summary" , ".pdf"),
@@ -200,17 +226,17 @@ df_1min_meta %>%
   df_10min <- df_1min_meta %>% 
   mutate(species_en = as.factor(species_en),
          interval   = as_hms(floor_date(timestamp, unit="10minutes"))) %>% 
-  group_by(ID,species_en,year_f,month,week,ydate,hour,interval) %>% 
+  group_by(ID,ring_ID,species_en,year_f,month,week,ydate,hour,interval) %>% 
   summarise(n_intervals=length(activity),
             n_active=length(activity[activity==1]),
             n_passive=length(activity[activity==0]),
             time_of_day=mean(time_of_day),
+            ring_ID=as.factor(ring_ID),
+            ID=as.factor(ID),
             coverage_daily=as.factor(mean(coverage_daily))) 
 
   df_10min$week_c <- as.numeric(scale(df_10min$week, scale = F)) # center weeks around the mean value (25)
 #df_10min$start.event <- ifelse(df_10min$time_of_day==min_set,T,F) # Identify start of the time series as 12 h since sunrise
-  df_10min$ID<- as.factor(df_10min$ID)
-
   
 # plott for weekly coverage of data:
 (pweek<- df_10min %>% 
@@ -268,7 +294,6 @@ ggsave(filename = paste0(path, "plots/tag_check/" , "species_by_week" , ".pdf"),
 
 
 ## One Plot for each tag AND week:
-df_10min$ID<- as.factor(df_10min$ID)
 plot_list<- list()
 for(i in 1:nlevels(df_10min$ID)){
   p <- df_10min %>% 

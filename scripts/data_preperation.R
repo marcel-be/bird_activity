@@ -243,6 +243,18 @@ tags_all_3 <- tags_all_2 %>%
   filter(ID!="210610_150099_20") %>%    # buzzard 
   droplevels()
 
+##########################################################################
+#### 2.3. identify individuals that were captured two times
+
+df<- as.data.frame(table(tags_all_3$ring_ID))
+df<- df %>% 
+  filter(Freq>1) %>% 
+  droplevels()
+
+tags_all_3$recapture<- "no"
+tags_all_3$recapture[tags_all_3$ring_ID %in% df[,1]]<- "yes"
+
+
 
 write.csv(tags_all_3, paste0(path, "bird_data_storage/tags_overview.csv")) # will be used as "metadata" for rethomics package
 
