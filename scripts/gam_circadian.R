@@ -76,7 +76,7 @@ str(df_1min)
 df_10min <- df_1min %>% 
   mutate(species_en = as.factor(species_en),
          interval   = as_hms(floor_date(timestamp_CET, unit="10minutes"))) %>% 
-  group_by(ID,species_en,year_f,month,week,ydate,hour,interval) %>% 
+  group_by(ID, ring_ID, species_en,year_f,month,week,ydate,hour,interval) %>% 
   summarise(n_intervals=length(activity),
             n_active=length(activity[activity==1]),
             n_passive=length(activity[activity==0]),
@@ -129,9 +129,9 @@ ggplot(df_10min, aes(y = n_active/n_intervals, x = time_to_rise_std)) +
 gam_GI<- bam(activity ~ species_en +
                 s(time_to_rise_std, m=2,  bs="cc", k=50) +
                 s(time_to_rise_std, by=species_en, m=1,  bs="cc", k=50) + # no intercept-per-species when using the "by"-argument --> specify separately (fixed or random)
-                s(ID, bs="re") + # random intercept for each individual
+                s(ring_ID, bs="re") + # random intercept for each individual
                #s(species_en, bs="re")+ # random intercept for each species
-                s(ID, time_to_rise_std, bs="re") + # random slope for each ID
+                s(ring_ID, time_to_rise_std, bs="re") + # random slope for each ID
                 s(date_f, bs="re"),  # k equals the number of levels of grouping variable
               method ="fREML", 
               family ="binomial",
@@ -150,9 +150,9 @@ anova(gam_GI)
 #underlying assumption is that group-level smooth terms do not share or deviate from a common form
 gam_I<- bam(activity ~ species_en +
               s(time_to_rise_std, by=species_en, m=1,  bs="cc", k=50) + # no intercept-per-ID when using the "by"-argument --> specify separately (fixed or random)
-              s(ID, bs="re") + # random intercept for each individual
+              s(ring_ID, bs="re") + # random intercept for each individual
              #s(species_en, bs="re")+ # random intercept for each species
-              s(ID, time_to_rise_std, bs="re") + # random slope for each ID
+              s(ring_ID, time_to_rise_std, bs="re") + # random slope for each ID
               s(date_f, bs="re"),  # k equals the number of levels of grouping variable
             method ="fREML", 
             family ="binomial",
@@ -227,14 +227,14 @@ start_value_rho(gam_I, plot=TRUE) #0.27
 date_fixed = "2020-06-01"
 time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
 data_new <- df_1min %>%  
-  expand(nesting(species_en, ID),date_fixed, time_to_rise_std_seq) %>% 
+  expand(nesting(species_en, ring_ID),date_fixed, time_to_rise_std_seq) %>% 
   rename(date_f       = date_fixed,
          time_to_rise_std = time_to_rise_std_seq)
 
 # approach 2: predict for all dates and aggregate mean activity for all dates before plotting. Prediction takes way longer.
 time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
 data_new <- df_1min %>%  
-  expand(nesting(species_en, ID),date_f, time_to_rise_std_seq) %>% 
+  expand(nesting(species_en, ring_ID),date_f, time_to_rise_std_seq) %>% 
   rename(time_to_rise_std = time_to_rise_std_seq)
 
 data_new$time_to_rise_std[data_new$time_to_rise_std == min(abs(data_new$time_to_rise_std))] <- 0 # get activity predictions for time of sunrise
@@ -257,11 +257,11 @@ data_new$se_max <- exp(pred$fit - 1.96 * pred$se.fit) / (1+exp(pred$fit - 1.96 *
 
 ## plot results
 data_new %>% 
-  group_by(species_en, ID, time_to_rise_std) %>% 
+  group_by(species_en, ring_ID, time_to_rise_std) %>% 
   summarise_each(funs(mean)) %>% 
 ggplot(data = ., 
        aes(x = time_to_rise_std, y = mu, 
-           color = ID, group = ID))+
+           color = ring_ID, group = ring_ID))+
   #geom_point(data=df_10min, alpha = .1, 
   #           aes(x = time_to_rise_std, y = n_active/n_intervals)) +
   geom_ribbon(aes(ymin = se_min ,
