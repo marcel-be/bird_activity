@@ -32,6 +32,7 @@ df_1min$month_f        <- factor(month(df_1min$date))
 df_1min$year_f         <- factor(df_1min$year)
 df_1min$ydate_f        <- as.factor(df_1min$ydate)
 df_1min$species_en     <- as.factor(df_1min$species_en)
+df_1min$ring_ID     <- as.factor(df_1min$ring_ID)
 df_1min$date           <- date(df_1min$date)
 df_1min$date_f         <- as.factor(df_1min$date)
 df_1min$ID             <- as.factor(df_1min$ID)
@@ -59,7 +60,8 @@ df_1min<- df_1min %>%
 ## Subset of coverage > 50%:
 nrow(df_1min[df_1min$coverage_daily<0.50])/nrow(df_1min) # 1.26%
 df_1min<- df_1min %>% 
-  filter(coverage_daily > 0.5) 
+  filter(coverage_daily > 0.5) %>% 
+  droplevels()
 
 ## set maximum and minimum sunset time (for cc-smoother)
 min_set  <- min(df_1min$time_to_rise_std)
@@ -118,9 +120,9 @@ boxplot(coverage_daily ~ species_en,
 ## activity ~ time of day (centered around sunrise)
 ## Group level trends with different smoothness for each group 
 ## Bird species as grouping factor
-## Corrected for ID and date --> activity pattern for typical Individual on a typical day/date
+## Corrected for Inidividual ID (RingID) and date --> activity pattern for typical Individual on a typical day/date
 
-ggplot(df_10min, aes(y = n_active/n_intervals, x = time_to_rise_std)) +
+ggplot(df_10min, aes(y = n_active/n_intervals, x = time_to_rise_std)) + # what we aim to model
   geom_point(alpha = .2) + 
   geom_smooth(se = T) +
   facet_wrap(~species_en)
@@ -131,7 +133,7 @@ gam_GI<- bam(activity ~ species_en +
                 s(time_to_rise_std, by=species_en, m=1,  bs="cc", k=50) + # no intercept-per-species when using the "by"-argument --> specify separately (fixed or random)
                 s(ring_ID, bs="re") + # random intercept for each individual
                #s(species_en, bs="re")+ # random intercept for each species
-                s(ring_ID, time_to_rise_std, bs="re") + # random slope for each ID
+                s(ring_ID, time_to_rise_std, bs="re") + # random slope for each bird individual
                 s(date_f, bs="re"),  # k equals the number of levels of grouping variable
               method ="fREML", 
               family ="binomial",
@@ -141,18 +143,19 @@ gam_GI<- bam(activity ~ species_en +
               AR.start = df_1min_short$start.event,
               data = df_1min_short)
 # specify m=1 instead of m=2 for the group-level smoothers. This reduces collinearity between the global smoother and the group-specific terms which occasionally leads to high uncertainty around the global smoother.
-# explicitly include a random effect ( s(tspecies, bs="re")) for the intercept, as group-specific intercepts are not incorporated into factor "by" variable smoothers
+# explicitly include a random effect ( s(species, bs="re")) for the intercept (or fixed factor in our case), as group-specific intercepts are not incorporated into factor "by" variable smoothers
 summary(gam_GI)
 anova(gam_GI)
 
 
 ## model I: Group-specific smoothers with different wiggliness (no global smoother)
-#underlying assumption is that group-level smooth terms do not share or deviate from a common form
+## underlying assumption is that group-level smooth terms do not share or deviate from a common form
+## Species-curves are not drawn towards a global trend (more "individualistic" than model GI)
 gam_I<- bam(activity ~ species_en +
-              s(time_to_rise_std, by=species_en, m=1,  bs="cc", k=50) + # no intercept-per-ID when using the "by"-argument --> specify separately (fixed or random)
+              s(time_to_rise_std, by=species_en, m=2,  bs="cc", k=50) + # no intercept-per-ID when using the "by"-argument --> specify separately (fixed or random)
               s(ring_ID, bs="re") + # random intercept for each individual
              #s(species_en, bs="re")+ # random intercept for each species
-              s(ring_ID, time_to_rise_std, bs="re") + # random slope for each ID
+              s(ring_ID, time_to_rise_std, bs="re") + # random slope for each bird individual
               s(date_f, bs="re"),  # k equals the number of levels of grouping variable
             method ="fREML", 
             family ="binomial",
@@ -175,7 +178,7 @@ gam.check(gam_I)
 E<- residuals(gam_I, type="pearson")
 fit<- fitted(gam_I)
 
-ggplot(data=df_1min_short, aes(y=E, x=fit))+
+p<- ggplot(data=df_1min_short, aes(y=E, x=fit))+
   geom_point(alpha=0.2)+
   xlab("Fitted values") +
   ylab("Pearson residuals")+
@@ -184,9 +187,9 @@ ggplot(data=df_1min_short, aes(y=E, x=fit))+
   geom_smooth()+
   facet_wrap(~species_en)
 ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "residuals_fitted" , ".png"),
-       width = 15, height = 9)
+       plot=p, width = 15, height = 9)
 
-ggplot(data=df_1min_short, aes(y=E, x=time_to_rise_std))+
+p<- ggplot(data=df_1min_short, aes(y=E, x=time_to_rise_std))+
   geom_point(alpha=0.2)+
   xlab("time_to_rise_std") +
   ylab("Pearson residuals")+
@@ -194,9 +197,9 @@ ggplot(data=df_1min_short, aes(y=E, x=time_to_rise_std))+
   geom_hline(yintercept=0)+
   facet_wrap(~species_en)
 ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "residuals_covariate" , ".png"),
-       width = 15, height = 9)
+       plot=p, width = 15, height = 9)
   
-plot(E~df_1min_short$species_en)
+plot(E~df_1min_short$species_en, ylim=c(-10,60))
 plot(E~df_1min_short$date_f)
 
 
@@ -206,7 +209,7 @@ plot(simulationOutput)
 testDispersion(simulationOutput) # underdispersion problem
 
 
-## autocorrelation
+## temporal autocorrelation
 # https://mran.microsoft.com/snapshot/2016-10-12/web/packages/itsadug/vignettes/acf.html
 acf_GI<- acf_resid(gam_I)
 start_value_rho(gam_GI, plot=TRUE) #0.27
@@ -238,7 +241,6 @@ data_new <- df_1min %>%
   rename(time_to_rise_std = time_to_rise_std_seq)
 
 data_new$time_to_rise_std[data_new$time_to_rise_std == min(abs(data_new$time_to_rise_std))] <- 0 # get activity predictions for time of sunrise
-
 
 pred <- predict(gam_I, 
                 newdata = data_new, 
