@@ -58,7 +58,7 @@ df_1min<- df_1min %>%
   droplevels() # subset of species with most individuals
 
 ## Subset of coverage > 50%:
-nrow(df_1min[df_1min$coverage_daily<0.50])/nrow(df_1min) # 1.26%
+nrow(df_1min[df_1min$coverage_daily<0.5,])/nrow(df_1min) # 1.26%
 df_1min<- df_1min %>% 
   filter(coverage_daily > 0.5) %>% 
   droplevels()

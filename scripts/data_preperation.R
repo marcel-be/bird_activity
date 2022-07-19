@@ -244,7 +244,7 @@ tags_all_3 <- tags_all_2 %>%
   droplevels()
 
 ##########################################################################
-#### 2.3. identify individuals that were captured two times
+#### 2.4. identify individuals that were captured two times
 
 df<- as.data.frame(table(tags_all_3$ring_ID))
 df<- df %>% 
@@ -253,7 +253,6 @@ df<- df %>%
 
 tags_all_3$recapture<- "no"
 tags_all_3$recapture[tags_all_3$ring_ID %in% df[,1]]<- "yes"
-
 
 
 write.csv(tags_all_3, paste0(path, "bird_data_storage/tags_overview.csv")) # will be used as "metadata" for rethomics package
@@ -436,11 +435,16 @@ df$time_to_set[is.na(df$time_to_set)]<- (df$timestamp_CET[is.na(df$time_to_set)]
 
 #### 3.6. correction for varying daylengths over the year
 
-df<- df %>% 
+df_1_min_all_meta_5<- df %>% 
   mutate(daylength = sunset - sunrise,
          time_to_rise_std = (as.numeric(mean(daylength)) / as.numeric(daylength)) * time_to_rise) # multiply the time to/since sunset with the quotient of mean daylength and the actual daylength (on shorter days, the time to sunrise becomes a bit longer and vice versa)
 
-#### 3.7 save final dataset
+#### 3.8. Exclude day of capture
 
-df_1_min_all_meta_5 <- df 
-fwrite(df_1_min_all_meta_5, paste0(path,"bird_data_storage/tags_1min_withmeta.csv")) # all data 2019 & 2020 & 2021 with metadata
+df_1_min_all_meta_6<- df_1_min_all_meta_5 %>% 
+  filter(date_CET != date_capture)
+
+
+##########################################################################
+#### 3.9 save final dataset
+fwrite(df_1_min_all_meta_6, paste0(path,"bird_data_storage/tags_1min_withmeta.csv")) # all data 2019 & 2020 & 2021 with metadata
