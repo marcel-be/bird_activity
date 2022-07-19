@@ -274,7 +274,7 @@ df_1min_2019 <- plyr::ldply(Data.file.list_2019, function(x){
   data$ID<-str_split(basename(x), ".csv")[[1]][1]
   data$file<-basename(x) # modify
   data$timestamp<- as.POSIXct(data$timestamp)
-  data$start_datetime<- min(data$timestamp)
+  #data$start_datetime<- min(data$timestamp)
   #data$stop_datetime<-max(data$timestamp)
   data$date <- date(ymd_hms(data$timestamp))
   data$year <- year(data$date)
@@ -293,7 +293,7 @@ df_1min_2020 <- plyr::ldply(Data.file.list_2020, function(x){
   data<- fread(x)
   data$ID<-str_split(basename(x), ".csv")[[1]][1]
   data$timestamp<- as.POSIXct(data$timestamp)
-  data$start_datetime<- min(data$timestamp)
+  #data$start_datetime<- min(data$timestamp)
   #data$stop_datetime<-max(data$timestamp)
   data$date <- date(ymd_hms(data$timestamp))
   data$year <- year(data$date)
@@ -312,7 +312,7 @@ df_1min_2021 <- plyr::ldply(Data.file.list_2021, function(x){
   data<-data.table::fread(x)
   data$ID<-str_split(basename(x), ".csv")[[1]][1]
   #data$timestamp<-as.POSIXct(data$timestamp)
-  data$start_datetime<-min(data$timestamp)
+  #data$start_datetime<-min(data$timestamp)
   #data$stop_datetime<-max(data$timestamp)
   data$date <- date(ymd_hms(data$timestamp))
   data$year <- year(data$date)
@@ -407,7 +407,7 @@ Lon<-8.663649
 
 # apply function "time_of_day" from tRackIT-Package. Based on function StreamMetabolism::sunrise.set (check help for infos):
 df <-time_of_day(data = df_1_min_all_meta_4, Lat=Lat, Lon = Lon, tcol = "timestamp", tz = "CET", activity_period = "diurnal") %>% 
-  select(data_ID, timestamp, sunrise, sunset, time_to_rise, time_to_set, start_datetime, stop_datetime) %>% 
+  select(data_ID, timestamp, sunrise, sunset, time_to_rise, time_to_set) %>% 
   rename(timestamp_CET = timestamp) %>% 
   right_join(df_1_min_all_meta_4, by="data_ID")
 
@@ -433,7 +433,7 @@ df$time_to_rise[is.na(df$time_to_rise)]<- (df$timestamp_CET[is.na(df$time_to_ris
 df$time_to_set[is.na(df$time_to_set)]<- (df$timestamp_CET[is.na(df$time_to_set)] - df$sunset[is.na(df$time_to_set)]) / (60*60)
 
 
-#### 3.6. correction for varying daylengths over the year
+#### 3.6. correction for varying day lengths over the year
 
 df_1_min_all_meta_5<- df %>% 
   mutate(daylength = sunset - sunrise,
@@ -444,7 +444,22 @@ df_1_min_all_meta_5<- df %>%
 df_1_min_all_meta_6<- df_1_min_all_meta_5 %>% 
   filter(date_CET != date_capture)
 
+#### 3.9. Add total tag duration as metadata
+
+df<- tags_all_3 %>% 
+  select(ID, stop_datetime) %>% 
+  right_join(df_1_min_all_meta_6, by="ID") %>% 
+  mutate(stop_datetime = fasttime::fastPOSIXct(stop_datetime,  tz="CET")) # end of tag life/duration
+
+df_1_min_all_meta_7 <- df %>% 
+  mutate(date_day_after_capture= as.character(date_capture + 1),
+         start_datetime= as.POSIXct(date_day_after_capture, format="%Y-%m-%d", tz="CET"),#  set beginning of day after capture as new start-date of tag (add acclimatisation time for birds)
+         time_total= as.numeric((stop_datetime - start_datetime)/24)) # total tag life duration
+
 
 ##########################################################################
 #### 3.9 save final dataset
-fwrite(df_1_min_all_meta_6, paste0(path,"bird_data_storage/tags_1min_withmeta.csv")) # all data 2019 & 2020 & 2021 with metadata
+df_1_min_all_meta_8<- df_1_min_all_meta_7 %>% 
+  select(-timestamp, -date, -date_day_after_capture, -time_to_rise, -time_to_set) #remove UTC formated dates and times
+
+fwrite(df_1_min_all_meta_8, paste0(path,"bird_data_storage/tags_1min_withmeta.csv")) # all data 2019 & 2020 & 2021 with metadata

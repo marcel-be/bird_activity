@@ -43,25 +43,36 @@ df_1min$timestamp_CET  <- fasttime::fastPOSIXct(df_1min$timestamp_CET, tz="CET")
 #df_1min$start_datetime<- fasttime::fastPOSIXct(df_1min$start_datetime, tz="CET") # only of needed in further analysis
 #df_1min$stop_datetime <- fasttime::fastPOSIXct(df_1min$stop_datetime, tz="CET") # only of needed in further analysis
 
-## Subset of species with at least 4 individuals:
-df_1min<- df_1min %>% 
-  filter(  species_en=="European_Robin" |
-           species_en=="European_Jay" |
-           species_en=="Eurasian_Blackcap"| 
-           species_en=="Wood_Warbler"| 
-           species_en=="Common_Blackbird" | 
-           species_en=="Eurasian_Blue_Tit"| 
-           species_en=="Common_Chaffinch" | 
-           species_en=="Marsh_Tit"| 
-           species_en=="Great_Tit"| 
-           species_en=="woodpecker") %>% 
-  droplevels() # subset of species with most individuals
 
 ## Subset of coverage > 50%:
 nrow(df_1min[df_1min$coverage_daily<0.5,])/nrow(df_1min) # 1.26%
 df_1min<- df_1min %>% 
   filter(coverage_daily > 0.5) %>% 
   droplevels()
+
+## Subset of Tags with > 2 days of data (date of capture was removed already)
+df_1min<- df_1min %>% 
+  filter(time_total >= 2)
+
+
+## Subset of species with at least 4 individuals:
+df<-df_1min %>% 
+  count(species_en, ring_ID) %>% 
+  as.data.frame(.) 
+table(df$species_en)
+
+df_1min<- df_1min %>% 
+  filter(  species_en=="European_Robin" |
+             species_en=="European_Jay" |
+             species_en=="Eurasian_Blackcap"| 
+             species_en=="Wood_Warbler"| 
+             species_en=="Common_Blackbird" | 
+             species_en=="Eurasian_Blue_Tit"| 
+             species_en=="Common_Chaffinch" | 
+             species_en=="Great_Tit"| 
+             species_en=="woodpecker") %>% 
+  droplevels() # subset of species with most individuals
+
 
 ## set maximum and minimum sunset time (for cc-smoother)
 min_set  <- min(df_1min$time_to_rise_std)
