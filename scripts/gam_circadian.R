@@ -240,9 +240,9 @@ plot(E~df_1min_short$date_f)
 
 
 # DHARMa
-simulationOutput <- simulateResiduals(fittedModel = gam_I, plot = F)
+#simulationOutput <- simulateResiduals(fittedModel = gam_I, plot = F)
 #plot(simulationOutput)
-testDispersion(simulationOutput) # underdispersion problem
+#testDispersion(simulationOutput) # underdispersion problem
 
 
 ## temporal autocorrelation
