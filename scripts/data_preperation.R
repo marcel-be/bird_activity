@@ -278,11 +278,10 @@ df_1min_2019 <- plyr::ldply(Data.file.list_2019, function(x){
   #data$stop_datetime<-max(data$timestamp)
   data$date <- date(ymd_hms(data$timestamp))
   data$year <- year(data$date)
-  data$ydate <- yday(data$date) # Day of the year
   data$month <- month(data$date) # Day of the month
   data$t <- data$timestamp-data$start_datetime # time since tagging in seconds
   data$activity <- ifelse(data$prediction=="active",1,0) # Activity classification
-  data <- data %>% select(ID,timestamp,date,year,ydate,month,t,activity)
+  data <- data %>% select(ID,timestamp,date,year,month,t,activity)
   return(data)
 }) # Generate 1 dataframe with all IDs
 
@@ -297,11 +296,10 @@ df_1min_2020 <- plyr::ldply(Data.file.list_2020, function(x){
   #data$stop_datetime<-max(data$timestamp)
   data$date <- date(ymd_hms(data$timestamp))
   data$year <- year(data$date)
-  data$ydate <- yday(data$date) # Day of the year
   data$month <- month(data$date) # Day of the month
   data$t <- data$timestamp-data$start_datetime # time since tagging in seconds
   data$activity <- ifelse(data$prediction=="active",1,0) # Activity classification
-  data <- data %>% select(ID,timestamp,date,year,ydate,month,t,activity)
+  data <- data %>% select(ID,timestamp,date,year,month,t,activity)
   return(data)
 }) # Generate 1 dataframe with all IDs
 
@@ -316,11 +314,10 @@ df_1min_2021 <- plyr::ldply(Data.file.list_2021, function(x){
   #data$stop_datetime<-max(data$timestamp)
   data$date <- date(ymd_hms(data$timestamp))
   data$year <- year(data$date)
-  data$ydate <- yday(data$date) # Day of the year
   data$month <- month(data$date) # Day of the month
   data$t <- data$timestamp-data$start_datetime # time since tagging in seconds
   data$activity <- ifelse(data$prediction=="active",1,0) # Activity classification
-  data <- data %>% select(ID,timestamp,date,year,ydate,month,t,activity)
+  data <- data %>% select(ID,timestamp,date,year,month,t,activity)
   return(data)
 }) # Generate 1 dataframe with all IDs
 
@@ -455,6 +452,9 @@ df_1_min_all_meta_7 <- df %>%
   mutate(date_day_after_capture= as.character(date_capture + 1),
          start_datetime= as.POSIXct(date_day_after_capture, format="%Y-%m-%d", tz="CET"),#  set beginning of day after capture as new start-date of tag (add acclimatisation time for birds)
          time_total= as.numeric((stop_datetime - start_datetime)/24)) # total tag life duration
+
+#### calculate day of the year
+df_1_min_all_meta_7$ydate <- yday(df_1_min_all_meta_7$date_CET) # Day of the year
 
 
 ##########################################################################
