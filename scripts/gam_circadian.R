@@ -104,7 +104,7 @@ str(df_1min)
 ## create 10-min-intervals for faster plotting:
 df_10min <- df_1min %>% 
   mutate(species_en = as.factor(species_en),
-         interval   = as_hms(floor_date(timestamp_CET, unit="10minutes"))) %>% 
+         interval   = as_hms(floor_date(timestamp_CET, unit="5minutes"))) %>% 
   group_by(ID, ring_ID, species_en,year_f,month,week,ydate,hour,interval) %>% 
   summarise(n_intervals=length(activity),
             n_active=length(activity[activity==1]),
@@ -395,88 +395,92 @@ df %>%
 ## 2. Activity values for certain IDs
 # possible to loop over all IDs and write all value into one table for further analysis
 
-#e.g.
-ID_sub <-  "150007_0_10_1"
-ID_sub <-  "150022_3_20_2"
-ID_sub <-  "210513_150007_40"
-ID_sub <-  "210513_150087_40"
+plot_list<- list()
+for(i in 1:nlevels(df_1min$ID)){
+  
+  df<-  df_1min %>% 
+    filter(ID==levels(ID)[i])
+  
+  min_set  <- min(df$time_to_rise_std)
+  max_set  <- max(df$time_to_rise_std)
+  
+  gam <-df %>% 
+    bam(activity ~ 
+          s(time_to_rise_std, m=2,  bs="cc", k=50) +
+          s(date_f, bs="re"),  # k equals the number of levels of grouping variable
+        method ="fREML", 
+        family ="binomial",
+        discrete = T, 
+        knots=list(time_to_rise_std=c(min_set, max_set)),
+        data = .)
+  
+  rho<- start_value_rho(gam, plot=TRUE)
+  
+  gam <- df %>% 
+    bam(activity ~ 
+          s(time_to_rise_std, m=2,  bs="cc", k=50) +
+          s(date_f, bs="re"),  # k equals the number of levels of grouping variable
+        method ="fREML", 
+        family ="binomial",
+        discrete = T, 
+        knots=list(time_to_rise_std=c(min_set, max_set)),
+        rho= rho,
+        data = .)
+  
+  time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
+  data_new <- df_1min %>% 
+    filter(ID==ID_sub) %>% 
+    droplevels() %>% 
+    expand(ID,date_f, time_to_rise_std_seq) %>% 
+    rename(time_to_rise_std = time_to_rise_std_seq)
+  
+  ## get predicted values
+  pred <- predict(gam, 
+                  newdata = data_new, 
+                  #exclude_terms = c(s(ID),s(ID, time_to_rise_std), s(date_f)),
+                  se = TRUE, 
+                  type="link")
+  data_new$mu     <- exp(pred$fit)/(1+exp(pred$fit)) # inverse link function (logit scale)
+  data_new$se_min <- exp(pred$fit + 1.96 * pred$se.fit) / (1+exp(pred$fit + 1.96 * pred$se.fit)) # 95% CV
+  data_new$se_max <- exp(pred$fit - 1.96 * pred$se.fit) / (1+exp(pred$fit - 1.96 * pred$se.fit))
+  
+  ## get derivatives
+  # find steepest slope of curve as a measure of "start" and "end" of activity
+  # redo! https://rdrr.io/cran/gratia/man/derivatives.html
+  df<- derivatives(gam, type = "central", newdata=data_new)
+  slope_max<- df %>% 
+    filter(derivative == max(derivative)|
+             derivative == min(derivative)) %>% 
+    rename(time_to_rise_std = data) %>% 
+    select(-var, -smooth) 
+  
+  #ggplot(data = df, aes(x = data, y = derivative))+
+  # geom_line(alpha = .8)+
+  # geom_point(data=slope_max, aes(x=time_to_rise_std, y=derivative))
+  
+  
+  p<- data_new %>% 
+    group_by(time_to_rise_std) %>% 
+    summarise_each(funs(mean)) %>% 
+    ggplot(data = ., 
+           aes(x = time_to_rise_std, y = mu))+
+    geom_ribbon(aes(ymin = se_min ,
+                    ymax = se_max), 
+                fill = "grey", color = "grey") +
+    geom_line(size = .8) + 
+    geom_hline(yintercept = 0.5, linetype = "dashed") +
+    geom_vline(xintercept = slope_max$time_to_rise_std[1],  color = "blue", size=0.5)+
+    geom_vline(xintercept = slope_max$time_to_rise_std[2],  color = "red", size=0.5)+
+    theme_bw(14) +
+    xlab("Time since sunrise") + 
+    ylab("Activity probability \n") + 
+    ylim(0, 1)
+  
+  
+  
+  plot_list[[i]] <-p
+}
 
-gam <- df_1min %>% 
-  filter(ID==ID_sub) %>% 
-        bam(activity ~ 
-               s(time_to_rise_std, m=2,  bs="cc", k=50) +
-               s(date_f, bs="re"),  # k equals the number of levels of grouping variable
-             method ="fREML", 
-             family ="binomial",
-             discrete = T, 
-             knots=list(time_to_rise_std=c(min_set, max_set)),
-             data = .)
-
-rho<- start_value_rho(gam, plot=TRUE)
-
-gam <- df_1min %>% 
-  filter(ID==ID_sub) %>% 
-  bam(activity ~ 
-        s(time_to_rise_std, m=2,  bs="cc", k=50) +
-        s(date_f, bs="re"),  # k equals the number of levels of grouping variable
-      method ="fREML", 
-      family ="binomial",
-      discrete = T, 
-      knots=list(time_to_rise_std=c(min_set, max_set)),
-      rho= rho,
-      data = .)
-
-time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
-data_new <- df_1min %>% 
-  filter(ID==ID_sub) %>% 
-  droplevels() %>% 
-  expand(ID,date_f, time_to_rise_std_seq) %>% 
-  rename(time_to_rise_std = time_to_rise_std_seq)
-
-## get predicted values
-pred <- predict(gam, 
-                newdata = data_new, 
-                #exclude_terms = c(s(ID),s(ID, time_to_rise_std), s(date_f)),
-                se = TRUE, 
-                type="link")
-data_new$mu     <- exp(pred$fit)/(1+exp(pred$fit)) # inverse link function (logit scale)
-data_new$se_min <- exp(pred$fit + 1.96 * pred$se.fit) / (1+exp(pred$fit + 1.96 * pred$se.fit)) # 95% CV
-data_new$se_max <- exp(pred$fit - 1.96 * pred$se.fit) / (1+exp(pred$fit - 1.96 * pred$se.fit))
-
-## get derivatives
-# find steepest slope of curve as a measure of "start" and "end" of activity
-# redo! https://rdrr.io/cran/gratia/man/derivatives.html
-df<- derivatives(gam, type = "central", newdata=data_new)
-slope_max<- df %>% 
-  filter(derivative == max(derivative)|
-           derivative == min(derivative)) %>% 
-  rename(time_to_rise_std = data) %>% 
-  select(-var, -smooth) 
-
-ggplot(data = df, aes(x = data, y = derivative))+
-  geom_line(alpha = .8)+
-  geom_point(data=slope_max, aes(x=time_to_rise_std, y=derivative))
-
-
-data_new %>% 
-  group_by(time_to_rise_std) %>% 
-  summarise_each(funs(mean)) %>% 
-ggplot(data = ., 
-       aes(x = time_to_rise_std, y = mu))+
-  geom_ribbon(aes(ymin = se_min ,
-                  ymax = se_max), 
-              fill = "grey", color = "grey") +
-  geom_line(size = .8) + 
-  geom_hline(yintercept = 0.5, linetype = "dashed") +
-  geom_vline(xintercept = slope_max$time_to_rise_std[1],  color = "blue", size=0.5)+
-  geom_vline(xintercept = slope_max$time_to_rise_std[2],  color = "red", size=0.5)+
-  theme_bw(14) +
-  xlab("Time since sunrise") + 
-  ylab("Activity probability \n") + 
-  ylim(0, 1)
-
-
-
-
-
-
+ggsave(filename = paste0(path, "plots/model_output/" , "curve_by_tag" , ".pdf"),
+       plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1), 
+       width = 15, height = 9)
