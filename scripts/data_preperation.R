@@ -371,22 +371,7 @@ df_1_min_all_meta_3  <- df_1_min_all_meta_2  %>%
 
 
 
-#### 3.4.  Add coverage data 
-## count datapoints per day (in minutes) and divide by total number of minutes per day
-
-coverage<- df_1_min_all_meta_3 %>% 
-  count(ID, date) %>% 
-  mutate(min_day = 60*24,
-         coverage_daily= n/min_day) %>% 
-  select(ID, date, coverage_daily)
-
-nrow(coverage[coverage$coverage_daily<0.8]) / nrow(coverage[coverage$coverage_daily>=0.8]) # % of data if coverage of 80% used as a threshold
-
-df_1_min_all_meta_4 <- df_1_min_all_meta_3 %>% 
-  left_join(coverage, by=c("ID", "date"))
-
-
-#### 3.5. Calculate sunset and sunrise
+#### 3.4. Calculate sunset and sunrise
 
 #df_1_min_all_meta_4$date_suntime<- format(df_1_min_all_meta_4$date, format="%Y/%m/%d")
 #df_1_min_all_meta_4$sunrise<- NA
@@ -397,16 +382,16 @@ df_1_min_all_meta_4 <- df_1_min_all_meta_3 %>%
 #  df_1_min_all_meta_4$sunrise <- sun$sunrise
 #}
 
-df_1_min_all_meta_4$data_ID<- seq(1:nrow(df_1_min_all_meta_4)) # get unique ID for each datapoint
+df_1_min_all_meta_3$data_ID<- seq(1:nrow(df_1_min_all_meta_3)) # get unique ID for each datapoint
 
 Lat<-50.844868
 Lon<-8.663649
 
 # apply function "time_of_day" from tRackIT-Package. Based on function StreamMetabolism::sunrise.set (check help for infos):
-df <-time_of_day(data = df_1_min_all_meta_4, Lat=Lat, Lon = Lon, tcol = "timestamp", tz = "CET", activity_period = "diurnal") %>% 
+df <-time_of_day(data = df_1_min_all_meta_3, Lat=Lat, Lon = Lon, tcol = "timestamp", tz = "CET", activity_period = "diurnal") %>% 
   select(data_ID, timestamp, sunrise, sunset, time_to_rise, time_to_set) %>% 
   rename(timestamp_CET = timestamp) %>% 
-  right_join(df_1_min_all_meta_4, by="data_ID")
+  right_join(df_1_min_all_meta_3, by="data_ID")
 
 # For some reason some dates (28/03/2020, 28/03/2021, 29/03/2020, 29/03/2021) are not calculated. Manually set sunset/rise for these dates:
 
@@ -430,9 +415,24 @@ df$time_to_rise[is.na(df$time_to_rise)]<- (df$timestamp_CET[is.na(df$time_to_ris
 df$time_to_set[is.na(df$time_to_set)]<- (df$timestamp_CET[is.na(df$time_to_set)] - df$sunset[is.na(df$time_to_set)]) / (60*60)
 
 
+#### 3.5.  Add coverage data 
+## count datapoints per day (in minutes) and divide by total number of minutes per day
+
+coverage<- df %>% 
+  count(ID, date_CET) %>% 
+  mutate(min_day = 60*24,
+         coverage_daily= n/min_day) %>% 
+  select(ID, date_CET, coverage_daily)
+
+nrow(coverage[coverage$coverage_daily<0.8]) / nrow(coverage[coverage$coverage_daily>=0.8]) # % of data if coverage of 80% used as a threshold
+
+df_1_min_all_meta_4 <- df %>% 
+  left_join(coverage, by=c("ID", "date_CET"))
+
+
 #### 3.6. correction for varying day lengths over the year
 
-df_1_min_all_meta_5<- df %>% 
+df_1_min_all_meta_5<- df_1_min_all_meta_4 %>% 
   mutate(daylength = sunset - sunrise,
          time_to_rise_std = (as.numeric(mean(daylength)) / as.numeric(daylength)) * time_to_rise) # multiply the time to/since sunset with the quotient of mean daylength and the actual daylength (on shorter days, the time to sunrise becomes a bit longer and vice versa)
 
