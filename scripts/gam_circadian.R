@@ -32,9 +32,9 @@ df_1min$month_f        <- factor(month(df_1min$date))
 df_1min$year_f         <- factor(df_1min$year)
 df_1min$ydate_f        <- as.factor(df_1min$ydate)
 df_1min$species_en     <- as.factor(df_1min$species_en)
-df_1min$ring_ID     <- as.factor(df_1min$ring_ID)
-df_1min$date           <- date(df_1min$date)
-df_1min$date_f         <- as.factor(df_1min$date)
+df_1min$ring_ID        <- as.factor(df_1min$ring_ID)
+df_1min$date_CET       <- date(df_1min$date_CET)
+df_1min$date_f         <- as.factor(df_1min$date_CET)
 df_1min$ID             <- as.factor(df_1min$ID)
 df_1min$week           <- week(df_1min$timestamp)
 df_1min$brood_patch    <- as.factor(df_1min$brood_patch)
@@ -44,33 +44,49 @@ df_1min$timestamp_CET  <- fasttime::fastPOSIXct(df_1min$timestamp_CET, tz="CET")
 #df_1min$stop_datetime <- fasttime::fastPOSIXct(df_1min$stop_datetime, tz="CET") # only of needed in further analysis
 
 
-## Subset of coverage > 50%:
-nrow(df_1min[df_1min$coverage_daily<0.5,])/nrow(df_1min) # 1.26%
+## Subset of coverage > 75%:
+nrow(df_1min[df_1min$coverage_daily>=0.75,])/nrow(df_1min) # 6.06%
 df_1min<- df_1min %>% 
-  filter(coverage_daily > 0.5) %>% 
+  filter(coverage_daily >= 0.75) %>% 
   droplevels()
 
-## Subset of Tags with > 2 days of data (date of capture was removed already)
+## Subset of Tags with > 3 days of data (date of capture was removed already)
+nrow(df_1min[df_1min$time_total >= 3,])/nrow(df_1min) # 0.8 %
 df_1min<- df_1min %>% 
-  filter(time_total >= 2)
+  filter(time_total >= 3)
 
 
 ## Subset of species with at least 4 individuals:
-df<-df_1min %>% 
-  count(species_en, ring_ID) %>% 
-  as.data.frame(.) 
-table(df$species_en)
+df_1min  %>% 
+  count(species_en, ring_ID) %>%
+  as.data.frame(.) %>% 
+  count(species_en) %>%
+  mutate(species_en = fct_reorder(species_en, n)) %>% 
+  ggplot(. ,aes(y=species_en, x=n, label = round(n,digits=1))) +
+  geom_bar(stat="identity", color="steelblue", fill="steelblue")+
+  ggtitle("Count of tagged individuals \n(some individuals were tagged two times)")+
+  geom_text(size = 5, position = position_stack(vjust = 1.025))+
+  xlab("Count")+
+  ylab("Species")+
+  theme_minimal()+
+  theme(text = element_text(size=15),
+        axis.text.x = element_text(angle = 0, vjust = 1, hjust=0, face="bold"),
+        legend.title=element_blank(),
+        legend.position = c(0.9, 0.1),
+        legend.text = element_text(size=15))
+
 
 df_1min<- df_1min %>% 
-  filter(  species_en=="European_Robin" |
-             species_en=="European_Jay" |
-             species_en=="Eurasian_Blackcap"| 
-             species_en=="Wood_Warbler"| 
-             species_en=="Common_Blackbird" | 
-             species_en=="Eurasian_Blue_Tit"| 
-             species_en=="Common_Chaffinch" | 
-             species_en=="Great_Tit"| 
-             species_en=="woodpecker") %>% 
+  filter(species_en=="Eurasian_Blackcap"|
+         species_en=="Great_Tit"|
+         species_en=="European_Robin" |
+         species_en=="Common_Blackbird" |
+         species_en=="European_Jay" |
+         species_en=="Eurasian_Blue_Tit"| 
+         species_en=="Common_Chaffinch"|
+         species_en=="woodpecker"|
+         species_en=="Wood_Warbler"
+            ) %>% 
   droplevels() # subset of species with most individuals
 
 
@@ -97,15 +113,22 @@ df_10min <- df_1min %>%
             time_to_rise_std = mean(time_to_rise_std)) %>% 
   mutate(active_prop =  n_active/n_intervals)
 
-df_10min <- df_10min[seq(1, nrow(df_10min),10), ] # reduce data for faster plotting
+df_10min <- df_10min[seq(1, nrow(df_10min),1), ] # reduce data for faster plotting
 
-df_1min_short <- df_1min[seq(1, nrow(df_1min),5), ] # reduce data for faster modelling
+df_1min_short <- df_1min[seq(1, nrow(df_1min),1), ] # reduce data for faster modelling
 
 
 ##################################################################################################################
 #### Some descriptives /collinearity
 
 summary(df_1min) 
+
+df<- df_1min  %>% 
+  count(species_en, ring_ID) %>%
+  as.data.frame(.) %>% 
+  count(ring_ID) %>%
+  as.data.frame(.)
+sum(df$n) # number of individuals
 
 table(df_1min$activity) # okay
 table(df_1min$species_en) # unbalanced? Difference of n of almost factor 10
@@ -172,10 +195,10 @@ gam_I<- bam(activity ~ species_en +
             family ="binomial",
             discrete = T, 
             knots=list(time_to_rise_std=c(min_set, max_set)),
-            rho= 0.27,
+            rho= 0.54,
             AR.start = df_1min_short$start.event,
             data = df_1min_short)
-summary(gam_I)
+#summary(gam_I)
 
 AIC(gam_GI, gam_I) # go for gam_I
 
@@ -183,7 +206,7 @@ AIC(gam_GI, gam_I) # go for gam_I
 #### Diagnostics
 
 ## check residuals
-appraise(gam_I)
+#appraise(gam_I)
 gam.check(gam_I)
 
 E<- residuals(gam_I, type="pearson")
@@ -196,6 +219,7 @@ p<- ggplot(data=df_1min_short, aes(y=E, x=fit))+
   theme(text = element_text(size=15))+
   geom_hline(yintercept=0)+
   geom_smooth()+
+  ylim(-15, 70)+
   facet_wrap(~species_en)
 ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "residuals_fitted" , ".png"),
        plot=p, width = 15, height = 9)
@@ -206,6 +230,7 @@ p<- ggplot(data=df_1min_short, aes(y=E, x=time_to_rise_std))+
   ylab("Pearson residuals")+
   theme(text = element_text(size=15))+
   geom_hline(yintercept=0)+
+  ylim(-15, 70)+
   facet_wrap(~species_en)
 ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "residuals_covariate" , ".png"),
        plot=p, width = 15, height = 9)
@@ -216,7 +241,7 @@ plot(E~df_1min_short$date_f)
 
 # DHARMa
 simulationOutput <- simulateResiduals(fittedModel = gam_I, plot = F)
-plot(simulationOutput)
+#plot(simulationOutput)
 testDispersion(simulationOutput) # underdispersion problem
 
 
@@ -224,7 +249,7 @@ testDispersion(simulationOutput) # underdispersion problem
 # https://mran.microsoft.com/snapshot/2016-10-12/web/packages/itsadug/vignettes/acf.html
 acf_GI<- acf_resid(gam_I)
 start_value_rho(gam_GI, plot=TRUE) #0.27
-start_value_rho(gam_I, plot=TRUE) #0.27
+start_value_rho(gam_I, plot=TRUE) #0.54
 
 
 
@@ -269,7 +294,7 @@ data_new$se_max <- exp(pred$fit - 1.96 * pred$se.fit) / (1+exp(pred$fit - 1.96 *
 
 
 ## plot results
-data_new %>% 
+p<- data_new %>% 
   group_by(species_en, ring_ID, time_to_rise_std) %>% 
   summarise_each(funs(mean)) %>% 
 ggplot(data = ., 
@@ -291,10 +316,10 @@ ggplot(data = .,
   theme(legend.position = "none") +
   facet_wrap(~species_en)
 ggsave(filename = paste0(path, "plots/model_output/" , "circadian_ID" , ".png"),
-       width = 15, height = 9)
+       plot=p, width = 15, height = 9)
 
 
-data_new %>% 
+p<- data_new %>% 
   group_by(species_en, time_to_rise_std) %>% 
   summarise_each(funs(mean)) %>% 
 ggplot(data = ., 
@@ -314,7 +339,7 @@ ggplot(data = .,
   ylim(0, 1) +
   theme(legend.position = c(0.85,0.88))
 ggsave(filename = paste0(path, "plots/model_output/" , "circadian_species" , ".png"),
-       width = 15, height = 9)
+       plot=p, width = 15, height = 9)
 
 
 
