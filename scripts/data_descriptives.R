@@ -318,17 +318,23 @@ ggsave(filename = paste0(path, "plots/tag_check/" , "tags_by_week" , ".pdf"),
 
 plot_list<- list()
 for(i in 1:nlevels(df_10min$ID)){
-    p <- df_10min %>%  
-    filter(ID == levels(ID)[i]) %>% 
-    ggplot(., aes(y = n_active/n_intervals, x = time_of_day)) +
+  df <- df_10min %>%  
+    filter(ID == levels(ID)[i]) 
+  
+  name<- paste0(as.character(df$species_en[1]),
+                " | brood patch=", as.character(df$brood_patch[1]),
+                " | year=", as.character(df$year_f[1]),
+                " | sex=", as.character(df$sex[1]))
+  
+  p<-  ggplot(df, aes(y = n_active/n_intervals, x = time_to_rise_std)) +
     geom_point(alpha = .20) + 
     geom_smooth(method = 'gam', 
                 formula = y ~ s(x, bs = "tp", k = 15)) +
     #scale_color_viridis(discrete = T) + 
-    facet_wrap(~ ydate + coverage_daily, labeller = label_both) +
-    #facet_grid(~ ydate, labeller = coverage_daily)+
+    facet_wrap(~ date_f) +
+    #facet_wrap(~ ydate + coverage_daily, labeller = label_both) +
     theme_bw()+
-    ggtitle(levels(df_10min$ID)[i])
+    ggtitle(paste0(levels(df_10min$ID)[i]," ", name))
   
   plot_list[[i]] <-p
 }
@@ -338,12 +344,14 @@ ggsave(filename = paste0(path, "plots/tag_check/" , "tags_by_day_selection" , ".
        width = 15, height = 9)
 
 
+
 # all tags that look odd (after first visual inspection of plots above):
 df_10min2<- df_10min %>% 
   filter(ID=="150037_20" |ID=="150114_1_10_2" |ID=="150156_4_30_1" |ID=="210513_150087_40" |ID=="210518_150077_40" |ID=="210610_150099_20" |ID=="210617_150007_10" | ID=="210701_150039_40")# list of fishy tags (from visual a/p-inspection)
 df_10min$ID<- as.factor(df_10min$ID)
 plot_list<- list()
 df_10min2$ID<- droplevels(df_10min2$ID)
+
 
 
 ################################################################################

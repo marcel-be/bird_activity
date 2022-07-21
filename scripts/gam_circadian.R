@@ -53,7 +53,9 @@ df_1min<- df_1min %>%
 ## Subset of Tags with > 3 days of data (date of capture was removed already)
 nrow(df_1min[df_1min$time_total >= 3,])/nrow(df_1min) # 0.8 %
 df_1min<- df_1min %>% 
-  filter(time_total >= 3)
+  filter(time_total >= 3) %>% 
+  filter(ID != "210408_150113_40")
+
 
 
 ## Subset of species with at least 4 individuals:
@@ -105,7 +107,7 @@ str(df_1min)
 df_10min <- df_1min %>% 
   mutate(species_en = as.factor(species_en),
          interval   = as_hms(floor_date(timestamp_CET, unit="5minutes"))) %>% 
-  group_by(ID, ring_ID, species_en,year_f,month,week,ydate,hour,interval) %>% 
+  group_by(ID, ring_ID, species_en,year_f,brood_patch,sex, month,week,ydate, date_f,hour,interval) %>% 
   summarise(n_intervals=length(activity),
             n_active=length(activity[activity==1]),
             n_passive=length(activity[activity==0]),
@@ -129,6 +131,13 @@ df<- df_1min  %>%
   count(ring_ID) %>%
   as.data.frame(.)
 sum(df$n) # number of individuals
+
+df<- df_1min  %>% 
+  count(species_en, ID) %>%
+  as.data.frame(.) %>% 
+  count(ID) %>%
+  as.data.frame(.)
+sum(df$n) # number of Tags
 
 table(df_1min$activity) # okay
 table(df_1min$species_en) # unbalanced? Difference of n of almost factor 10
@@ -392,14 +401,17 @@ df %>%
 
 
 
-## 2. Activity values for certain IDs
+## 2. Activity values for all Individuals
 # possible to loop over all IDs and write all value into one table for further analysis
 
 plot_list<- list()
 for(i in 1:nlevels(df_1min$ID)){
   
+  print(i)
+  
   df<-  df_1min %>% 
-    filter(ID==levels(ID)[i])
+    filter(ID==levels(ID)[i]) %>% 
+    droplevels()
   
   min_set  <- min(df$time_to_rise_std)
   max_set  <- max(df$time_to_rise_std)
@@ -414,7 +426,7 @@ for(i in 1:nlevels(df_1min$ID)){
         knots=list(time_to_rise_std=c(min_set, max_set)),
         data = .)
   
-  rho<- start_value_rho(gam, plot=TRUE)
+  rho<- start_value_rho(gam, plot=F)
   
   gam <- df %>% 
     bam(activity ~ 
@@ -428,9 +440,7 @@ for(i in 1:nlevels(df_1min$ID)){
         data = .)
   
   time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
-  data_new <- df_1min %>% 
-    filter(ID==ID_sub) %>% 
-    droplevels() %>% 
+  data_new <- df%>% 
     expand(ID,date_f, time_to_rise_std_seq) %>% 
     rename(time_to_rise_std = time_to_rise_std_seq)
   
@@ -447,18 +457,23 @@ for(i in 1:nlevels(df_1min$ID)){
   ## get derivatives
   # find steepest slope of curve as a measure of "start" and "end" of activity
   # redo! https://rdrr.io/cran/gratia/man/derivatives.html
-  df<- derivatives(gam, type = "central", newdata=data_new)
-  slope_max<- df %>% 
-    filter(derivative == max(derivative)|
-             derivative == min(derivative)) %>% 
-    rename(time_to_rise_std = data) %>% 
-    select(-var, -smooth) 
+ 
+   #deri<- derivatives(gam, type = "central",term = "s(time_to_rise_std)", newdata=data_new)
+  #slope_max<- deri %>% 
+  #  group_by(data) %>% 
+  #  summarise_each(funs(mean)) %>% 
+  #  filter(derivative == max(derivative)|
+  #          derivative == min(derivative)) %>% 
+  #  rename(time_to_rise_std = data) %>% 
+  #  select(-var, -smooth) 
   
-  #ggplot(data = df, aes(x = data, y = derivative))+
-  # geom_line(alpha = .8)+
-  # geom_point(data=slope_max, aes(x=time_to_rise_std, y=derivative))
-  
-  
+  name<- paste0(as.character(df$ID[1]),
+                " | ", as.character(df$species_en[1]),
+                " | brood patch=", as.character(df$brood_patch[1]),
+                " | year=", as.character(df$year_f[1]),
+                " | sex=", as.character(df$sex[1]),
+                " | ringID=", as.character(df$ring_ID[1]))
+
   p<- data_new %>% 
     group_by(time_to_rise_std) %>% 
     summarise_each(funs(mean)) %>% 
@@ -469,14 +484,13 @@ for(i in 1:nlevels(df_1min$ID)){
                 fill = "grey", color = "grey") +
     geom_line(size = .8) + 
     geom_hline(yintercept = 0.5, linetype = "dashed") +
-    geom_vline(xintercept = slope_max$time_to_rise_std[1],  color = "blue", size=0.5)+
-    geom_vline(xintercept = slope_max$time_to_rise_std[2],  color = "red", size=0.5)+
+    #geom_vline(xintercept = slope_max$time_to_rise_std[1],  color = "blue", size=0.5)+
+    #geom_vline(xintercept = slope_max$time_to_rise_std[2],  color = "red", size=0.5)+
     theme_bw(14) +
     xlab("Time since sunrise") + 
     ylab("Activity probability \n") + 
-    ylim(0, 1)
-  
-  
+    ylim(0, 1)+
+    ggtitle(name)
   
   plot_list[[i]] <-p
 }
