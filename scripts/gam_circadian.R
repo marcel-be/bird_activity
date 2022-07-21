@@ -165,7 +165,7 @@ boxplot(coverage_daily ~ species_en,
         data = df_1min,
         xlab = "date", ylab = "Time to Sunrise") # including "coverage" does not improve the models
 
-# coverage yaer
+# coverage year
 p<- df_1min %>% 
   ggplot(., aes(y = activity, x = ydate,
                 group = ring_ID, color = ring_ID)) +
@@ -176,8 +176,8 @@ p<- df_1min %>%
   ggtitle("coverage of data over year")+
   xlab("Day of the Year")+
   ylab("Activity")
-ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "coverage_year" , ".png"),
-       plot=p, width = 15, height = 9)
+#ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "coverage_year" , ".png"),
+#       plot=p, width = 15, height = 9)
 
 # activity over year:
 df<- data_new %>% 
@@ -284,9 +284,9 @@ plot(E~df_1min_short$date_f)
 
 
 # DHARMa
-#simulationOutput <- simulateResiduals(fittedModel = gam_I, plot = F)
+simulationOutput <- simulateResiduals(fittedModel = gam_I, plot = F)
 #plot(simulationOutput)
-#testDispersion(simulationOutput) # underdispersion problem
+testDispersion(simulationOutput) # underdispersion problem
 
 
 ## temporal autocorrelation
