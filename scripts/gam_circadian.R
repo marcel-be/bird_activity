@@ -141,11 +141,17 @@ sum(df$n) # number of Tags
 
 table(df_1min$activity) # okay
 table(df_1min$species_en) # unbalanced? Difference of n of almost factor 10
+table(df_1min$ring_ID)
 hist(table(df_1min$date_f)) # okayish
+
+boxplot(time_to_rise_std ~ ring_ID, 
+        data = df_1min,
+        xlab = "Individual", ylab = "Time to Sunrise")
 
 boxplot(time_to_rise_std ~ date_f, 
         data = df_1min,
-        xlab = "date", ylab = "Time to Sunrise") # two dates (first days of the season) show higher mean time_to_sunrise. But looks good overall
+        xlab = "date", ylab = "Time to Sunrise") #  looks good overall
+
 boxplot(time_to_rise_std ~ species_en, 
         data = df_1min,
         xlab = "date", ylab = "Time to Sunrise") # perfect
@@ -155,7 +161,31 @@ boxplot(coverage_daily ~ species_en,
         data = df_1min,
         xlab = "date", ylab = "Time to Sunrise") # including "coverage" does not improve the models
 
+# coverage yaer
+p<- df_1min %>% 
+  ggplot(., aes(y = activity, x = ydate,
+                group = ring_ID, color = ring_ID)) +
+  geom_point(alpha = .25, size = 2) + 
+  facet_wrap(~ species_en) + 
+  theme_bw(14) +
+  theme(legend.position = "none")+
+  ggtitle("coverage of data over year")+
+  xlab("Day of the Year")+
+  ylab("Activity")
+#ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "coverage_year" , ".png"),
+#       plot=p, width = 15, height = 9)
 
+# activity over year:
+df<- data_new %>% 
+  group_by(species_en, ring_ID, date_f) %>%   
+  filter(mu == max(mu)) %>% 
+  summarise(peak = max(mu))  %>% 
+  mutate(ydate = yday(date_f))
+ggplot(data = df,  aes(x = ydate, y = peak, group=ring_ID, color=ring_ID))+
+  geom_line(size = .8) + 
+  geom_hline(yintercept = 0.5, linetype = "dashed") +
+  facet_wrap(~species_en)+
+  theme(legend.position = "none")
 
 ##################################################################################################################
 #### Models for circadian rhythm of bird activity (Daily rhythm)
@@ -375,11 +405,16 @@ data_new %>%
 
 # Peak activity: what are the two highest values for p(activity)?
 data_new %>% 
-  group_by(species_en) %>% 
+  group_by(species_en, ID) %>% 
   filter(mu == max(mu)) %>% 
   summarise(peak.a = max(mu),
             peak.a.low = se_min,
             peak.a.up = se_max)
+
+# mean activity 
+data_new %>% 
+  group_by(species_en, ID) %>% 
+  summarise(mean(mu))
 
 # Peak activity timing: time of day with maximum p(activity)
 data_new %>% 
@@ -400,14 +435,18 @@ df %>%
   summarise(max(derivative))
 
 
-
+##########################################################################################################
 ## 2. Activity values for all Individuals
 # possible to loop over all IDs and write all value into one table for further analysis
 
 plot_list<- list()
+n_ID<- nlevels(df_1min$ID)
+a<- seq(1,(2*n_ID)-1, length.out=n_ID)
+b<- seq(2, 2*n_ID   , length.out=n_ID)
+
 for(i in 1:nlevels(df_1min$ID)){
   
-  print(i)
+  print(levels(df_1min$ID)[i])
   
   df<-  df_1min %>% 
     filter(ID==levels(ID)[i]) %>% 
@@ -458,8 +497,9 @@ for(i in 1:nlevels(df_1min$ID)){
   # find steepest slope of curve as a measure of "start" and "end" of activity
   # redo! https://rdrr.io/cran/gratia/man/derivatives.html
  
-   #deri<- derivatives(gam, type = "central",term = "s(time_to_rise_std)", newdata=data_new)
-  #slope_max<- deri %>% 
+  
+  # deri<- derivatives(gam, type = "central",term = "s(time_to_rise_std)", newdata=data_new)
+  # slope_max<- deri %>% 
   #  group_by(data) %>% 
   #  summarise_each(funs(mean)) %>% 
   #  filter(derivative == max(derivative)|
@@ -492,7 +532,27 @@ for(i in 1:nlevels(df_1min$ID)){
     ylim(0, 1)+
     ggtitle(name)
   
-  plot_list[[i]] <-p
+  plot_list[[a[i]]] <-p
+  
+  df <- df_10min %>%  
+    filter(ID == levels(ID)[i]) 
+  
+  name<- paste0(as.character(df$species_en[1]),
+                " | brood patch=", as.character(df$brood_patch[1]),
+                " | year=", as.character(df$year_f[1]),
+                " | sex=", as.character(df$sex[1]))
+  
+  p<-  ggplot(df, aes(y = n_active/n_intervals, x = time_to_rise_std)) +
+    geom_point(alpha = .20) + 
+    geom_smooth(method = 'gam', 
+                formula = y ~ s(x, bs = "tp", k = 25)) +
+    #scale_color_viridis(discrete = T) + 
+    facet_wrap(~ date_f) +
+    #facet_wrap(~ ydate + coverage_daily, labeller = label_both) +
+    theme_bw()+
+    ggtitle(paste0(levels(df_10min$ID)[i]," ", name))
+  
+  plot_list[[b[i]]] <-p
 }
 
 ggsave(filename = paste0(path, "plots/model_output/" , "curve_by_tag" , ".pdf"),
