@@ -44,8 +44,14 @@ df_1min$timestamp_CET  <- fasttime::fastPOSIXct(df_1min$timestamp_CET, tz="CET")
 #df_1min$stop_datetime <- fasttime::fastPOSIXct(df_1min$stop_datetime, tz="CET") # only of needed in further analysis
 
 
+## set range of "time_to_rise" as -5 to 18. Not all Individuals cover the whole range from -8.7 to 22.1 (all data). This max and min values will be used for cc-smoother.
+nrow(df_1min[df_1min$time_to_rise_std<=18 & df_1min$time_to_rise_std>=-5,])/nrow(df_1min) # 95.4%
+df_1min<- df_1min %>%
+  filter(time_to_rise_std >= -5) %>% 
+  filter(time_to_rise_std <= 18)
+
 ## Subset of coverage > 75%:
-nrow(df_1min[df_1min$coverage_daily>=0.75,])/nrow(df_1min) # 6.06%
+nrow(df_1min[df_1min$coverage_daily>=0.75,])/nrow(df_1min) # 94.1 %
 df_1min<- df_1min %>% 
   filter(coverage_daily >= 0.75) %>% 
   droplevels()
@@ -55,8 +61,6 @@ nrow(df_1min[df_1min$time_total >= 3,])/nrow(df_1min) # 0.8 %
 df_1min<- df_1min %>% 
   filter(time_total >= 3) %>% 
   filter(ID != "210408_150113_40")
-
-
 
 ## Subset of species with at least 4 individuals:
 df_1min  %>% 
@@ -83,7 +87,7 @@ df_1min<- df_1min %>%
          species_en=="Great_Tit"|
          species_en=="European_Robin" |
          species_en=="Common_Blackbird" |
-         species_en=="European_Jay" |
+         species_en=="Eurasian_Jay" |
          species_en=="Eurasian_Blue_Tit"| 
          species_en=="Common_Chaffinch"|
          species_en=="woodpecker"|
@@ -172,8 +176,8 @@ p<- df_1min %>%
   ggtitle("coverage of data over year")+
   xlab("Day of the Year")+
   ylab("Activity")
-#ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "coverage_year" , ".png"),
-#       plot=p, width = 15, height = 9)
+ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "coverage_year" , ".png"),
+       plot=p, width = 15, height = 9)
 
 # activity over year:
 df<- data_new %>% 
@@ -186,6 +190,7 @@ ggplot(data = df,  aes(x = ydate, y = peak, group=ring_ID, color=ring_ID))+
   geom_hline(yintercept = 0.5, linetype = "dashed") +
   facet_wrap(~species_en)+
   theme(legend.position = "none")
+
 
 ##################################################################################################################
 #### Models for circadian rhythm of bird activity (Daily rhythm)
@@ -234,7 +239,7 @@ gam_I<- bam(activity ~ species_en +
             family ="binomial",
             discrete = T, 
             knots=list(time_to_rise_std=c(min_set, max_set)),
-            rho= 0.54,
+            rho= 0.55,
             AR.start = df_1min_short$start.event,
             data = df_1min_short)
 #summary(gam_I)
@@ -288,7 +293,7 @@ plot(E~df_1min_short$date_f)
 # https://mran.microsoft.com/snapshot/2016-10-12/web/packages/itsadug/vignettes/acf.html
 acf_GI<- acf_resid(gam_I)
 start_value_rho(gam_GI, plot=TRUE) #0.27
-start_value_rho(gam_I, plot=TRUE) #0.54
+start_value_rho(gam_I, plot=TRUE) #0.55
 
 
 
@@ -323,9 +328,9 @@ pred <- predict(gam_I,
                 se = TRUE, 
                 type="link")
 
-data_new<- data_new %>% 
-  filter(date_f!= "2019-08-15") %>% 
-  filter(date_f!="2020-04-05")
+#data_new<- data_new %>% 
+#  filter(date_f!= "2019-08-15") %>% 
+#  filter(date_f!="2020-04-05")
 
 data_new$mu     <- exp(pred$fit)/(1+exp(pred$fit)) # inverse link function (logit scale)
 data_new$se_min <- exp(pred$fit + 1.96 * pred$se.fit) / (1+exp(pred$fit + 1.96 * pred$se.fit)) # 95% CV
