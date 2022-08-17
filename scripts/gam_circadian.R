@@ -57,10 +57,11 @@ df_1min<- df_1min %>%
   droplevels()
 
 ## Subset of Tags with > 3 days of data (date of capture was removed already)
-nrow(df_1min[df_1min$time_total >= 3,])/nrow(df_1min) # 0.8 %
+nrow(df_1min[df_1min$time_total >= 3 & df_1min$ID != "210408_150113_40" & df_1min$ID != "210622_150007_40",])/nrow(df_1min) # 0.99 %
 df_1min<- df_1min %>% 
   filter(time_total >= 3) %>% 
-  filter(ID != "210408_150113_40")
+  filter(ID != "210408_150113_40") %>% 
+  filter(ID != "210622_150007_40")
 
 ## Subset of species with at least 4 individuals:
 df_1min  %>% 
