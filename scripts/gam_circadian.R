@@ -122,7 +122,7 @@ df_10min <- df_1min %>%
 
 df_10min <- df_10min[seq(1, nrow(df_10min),1), ] # reduce data for faster plotting
 
-df_1min_short <- df_1min[seq(1, nrow(df_1min),1), ] # reduce data for faster modelling
+df_1min_short <- df_1min[seq(1, nrow(df_1min),100), ] # reduce data for faster modelling
 
 
 ##################################################################################################################
@@ -316,16 +316,26 @@ data_new <- df_1min %>%
          time_to_rise_std = time_to_rise_std_seq)
 
 # approach 2: predict for all dates and aggregate mean activity for all dates before plotting. Prediction takes way longer.
-time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
+time_to_rise_std_seq<- seq(min_set,max_set, length.out=2)
 data_new <- df_1min %>%  
   expand(nesting(species_en, ring_ID),date_f, time_to_rise_std_seq) %>% 
   rename(time_to_rise_std = time_to_rise_std_seq)
+
+# approach 3: Set "date_f" in new x dataframe as "NA"
+time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
+data_new <- df_1min %>%  
+  expand(nesting(species_en, ring_ID),time_to_rise_std_seq) %>% 
+  rename(time_to_rise_std = time_to_rise_std_seq) %>% 
+  mutate(date_f=NA)
+
+
 
 data_new$time_to_rise_std[data_new$time_to_rise_std == min(abs(data_new$time_to_rise_std))] <- 0 # get activity predictions for time of sunrise
 
 pred <- predict(gam_I, 
                 newdata = data_new, 
-                #exclude_terms = c(s(ID),s(ID, time_to_rise_std), s(date_f)),
+                #exclude = "s(date_f)",
+                #newdata.guaranteed=TRUE,
                 se = TRUE, 
                 type="link")
 

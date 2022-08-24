@@ -15,17 +15,17 @@ path<- "J:/rts/rts_activity/"
 #############################################################################################################################
 #### 1.1.   Save all 2021 A/P data in one folder (only once) ####
 
-proj<- getProject(projroot = "J:/rts/2021/filter_tRackIT_2021/", plot=F) # filtered data 2021 (change path if needed)
+proj<-getProject(projroot ="Y:/RTS/data_processing/2021/filter_tRackIT_2021/", plot = F ) # filtered data 2021 (change path if needed)
 
 for(id in 1:nrow(proj$tags)){
   print(proj$tags$ID[id])
-  fls<-list.files(paste0("J:/rts/2021/bird_data_active_passive/filter_tRackIT_2021/data/individuals/", proj$tags$ID[id] ,"/classification/"), full.names=TRUE)
+  fls<-list.files(paste0("Y:/RTS/data_processing/2021/filter_tRackIT_2021/data/individuals/", proj$tags$ID[id] ,"/classification/"), full.names=TRUE)
   fls<- fls[fls %like% "aggregated"]
   
   lapply(fls, function(x){
     data<-fread(x) 
     name<- str_split(basename(x), "_aggregated")[[1]][1]
-    fwrite(data,paste0(path, "birds_activity_1min_2021/", name, ".csv"))
+    fwrite(data,paste0(path, "bird_data_active_passive/birds_activity_1min_2021/", name, ".csv"))
   })
 }
 
