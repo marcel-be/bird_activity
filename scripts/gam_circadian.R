@@ -332,10 +332,10 @@ data_new <- df_1min %>%
 
 data_new$time_to_rise_std[data_new$time_to_rise_std == min(abs(data_new$time_to_rise_std))] <- 0 # get activity predictions for time of sunrise
 
-pred <- predict(gam_I, 
+pred <- predict.gam(gam_I, 
                 newdata = data_new, 
-                #exclude = "s(date_f)",
-                #newdata.guaranteed=TRUE,
+                exclude = "s(date_f)",
+                newdata.guaranteed=TRUE,
                 se = TRUE, 
                 type="link")
 
@@ -344,6 +344,7 @@ pred <- predict(gam_I,
 #  filter(date_f!="2020-04-05")
 
 data_new$mu     <- exp(pred$fit)/(1+exp(pred$fit)) # inverse link function (logit scale)
+data_new$mu2     <- pred$fit
 data_new$se_min <- exp(pred$fit + 1.96 * pred$se.fit) / (1+exp(pred$fit + 1.96 * pred$se.fit)) # 95% CV
 data_new$se_max <- exp(pred$fit - 1.96 * pred$se.fit) / (1+exp(pred$fit - 1.96 * pred$se.fit))
 
