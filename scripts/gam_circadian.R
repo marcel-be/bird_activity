@@ -44,7 +44,7 @@ df_1min$timestamp_CET  <- fasttime::fastPOSIXct(df_1min$timestamp_CET, tz="CET")
 #df_1min$stop_datetime <- fasttime::fastPOSIXct(df_1min$stop_datetime, tz="CET") # only of needed in further analysis
 
 
-## set range of "time_to_rise" as -5 to 18. Not all Individuals cover the whole range from -8.7 to 22.1 (all data). This max and min values will be used for cc-smoother.
+## set range of "time_to_rise" as -5 to 18. Not all Individuals cover the whole range from -8.7 to 22.1 (all data). This max and min values will be used for cc-smoother. -5 to 18 is the range that all bird individuals fall into (see script "range_time_to_rise.R")
 nrow(df_1min[df_1min$time_to_rise_std<=18 & df_1min$time_to_rise_std>=-5,])/nrow(df_1min) # 95.4%
 df_1min<- df_1min %>%
   filter(time_to_rise_std >= -5) %>% 
@@ -122,7 +122,7 @@ df_10min <- df_1min %>%
 
 df_10min <- df_10min[seq(1, nrow(df_10min),1), ] # reduce data for faster plotting
 
-df_1min_short <- df_1min[seq(1, nrow(df_1min),100), ] # reduce data for faster modelling
+df_1min_short <- df_1min[seq(1, nrow(df_1min),20), ] # reduce data for faster modelling
 
 
 ##################################################################################################################
@@ -307,7 +307,7 @@ start_value_rho(gam_I, plot=TRUE) #0.55
 #                        ID = levels(df_1min$ID)
 #                        )
 
-# approach one: predict for a random date (used as random factor in model)
+## approach one: predict for a random date (used as random factor in model) - don´t use because of variation of outcomes for different dates!
 date_fixed = "2020-06-01"
 time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
 data_new <- df_1min %>%  
@@ -315,13 +315,13 @@ data_new <- df_1min %>%
   rename(date_f       = date_fixed,
          time_to_rise_std = time_to_rise_std_seq)
 
-# approach 2: predict for all dates and aggregate mean activity for all dates before plotting. Prediction takes way longer.
-time_to_rise_std_seq<- seq(min_set,max_set, length.out=2)
+## approach 2: predict for all possible dates (random factor "date_f") and then aggregate mean activity of all dates ("typical date") before plotting --> Mean activity-prediction for each date will be calculated. Prediction takes long! --> Similar to approach 3
+time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
 data_new <- df_1min %>%  
   expand(nesting(species_en, ring_ID),date_f, time_to_rise_std_seq) %>% 
   rename(time_to_rise_std = time_to_rise_std_seq)
 
-# approach 3: Set "date_f" in new x dataframe as "NA"
+## approach 3: Set "date_f" in new x-dataframe as "NA". Exclude "s(date_f)" in predict-function and make sure that newdata.guaranteed=TRUE. # Results are very similar to approach 2 . Much faster than approach 2
 time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
 data_new <- df_1min %>%  
   expand(nesting(species_en, ring_ID),time_to_rise_std_seq) %>% 
@@ -333,18 +333,19 @@ data_new <- df_1min %>%
 data_new$time_to_rise_std[data_new$time_to_rise_std == min(abs(data_new$time_to_rise_std))] <- 0 # get activity predictions for time of sunrise
 
 pred <- predict.gam(gam_I, 
-                newdata = data_new, 
-                exclude = "s(date_f)",
-                newdata.guaranteed=TRUE,
-                se = TRUE, 
-                type="link")
+                    newdata = data_new, 
+                    exclude = "s(date_f)",
+                    newdata.guaranteed=TRUE,
+                    se = TRUE, 
+                    type="link")
+# this prediction excludes random effect date --> very similar to predictions of mean activity of all dates ("typical date")
+
 
 #data_new<- data_new %>% 
 #  filter(date_f!= "2019-08-15") %>% 
 #  filter(date_f!="2020-04-05")
 
 data_new$mu     <- exp(pred$fit)/(1+exp(pred$fit)) # inverse link function (logit scale)
-data_new$mu2     <- pred$fit
 data_new$se_min <- exp(pred$fit + 1.96 * pred$se.fit) / (1+exp(pred$fit + 1.96 * pred$se.fit)) # 95% CV
 data_new$se_max <- exp(pred$fit - 1.96 * pred$se.fit) / (1+exp(pred$fit - 1.96 * pred$se.fit))
 
@@ -407,7 +408,7 @@ ggsave(filename = paste0(path, "plots/model_output/" , "circadian_species" , ".p
 
 ## 1. activity values from global model (species):
 
-# activity at time_to_rise_std = ~0
+# activity at time_to_rise_std = 0
 data_new %>% 
   filter(time_to_rise_std == 0) %>% 
   group_by(species_en) %>% 
@@ -422,7 +423,7 @@ data_new %>%
 
 # Peak activity: what are the two highest values for p(activity)?
 data_new %>% 
-  group_by(species_en, ID) %>% 
+  group_by(species_en, ring_ID) %>% 
   filter(mu == max(mu)) %>% 
   summarise(peak.a = max(mu),
             peak.a.low = se_min,
@@ -430,7 +431,7 @@ data_new %>%
 
 # mean activity 
 data_new %>% 
-  group_by(species_en, ID) %>% 
+  group_by(species_en, ring_ID) %>% 
   summarise(mean(mu))
 
 # Peak activity timing: time of day with maximum p(activity)
@@ -450,6 +451,8 @@ ggplot(data = df, aes(x = data, y = derivative,
 df %>% 
   group_by(species) %>% 
   summarise(max(derivative))
+
+
 
 
 ##########################################################################################################
@@ -497,15 +500,17 @@ for(i in 1:nlevels(df_1min$ID)){
   
   time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
   data_new <- df%>% 
-    expand(ID,date_f, time_to_rise_std_seq) %>% 
-    rename(time_to_rise_std = time_to_rise_std_seq)
+    expand(ID, time_to_rise_std_seq) %>% 
+    rename(time_to_rise_std = time_to_rise_std_seq) %>% 
+    mutate(date_f = NA)
   
   ## get predicted values
-  pred <- predict(gam, 
-                  newdata = data_new, 
-                  #exclude_terms = c(s(ID),s(ID, time_to_rise_std), s(date_f)),
-                  se = TRUE, 
-                  type="link")
+  pred <- predict.gam(gam, 
+                      newdata = data_new, 
+                      exclude = "s(date_f)",
+                      newdata.guaranteed=TRUE,
+                      se = TRUE, 
+                      type="link")
   data_new$mu     <- exp(pred$fit)/(1+exp(pred$fit)) # inverse link function (logit scale)
   data_new$se_min <- exp(pred$fit + 1.96 * pred$se.fit) / (1+exp(pred$fit + 1.96 * pred$se.fit)) # 95% CV
   data_new$se_max <- exp(pred$fit - 1.96 * pred$se.fit) / (1+exp(pred$fit - 1.96 * pred$se.fit))
