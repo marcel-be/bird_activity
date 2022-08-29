@@ -327,7 +327,7 @@ for(i in 1:nlevels(df_10min$ID)){
   plot_list[[i]] <-p
 }
 
-ggsave(filename = paste0(path, "plots/tag_check/" , "tags_by_day" , ".pdf"),
+ggsave(filename = paste0(path, "plots/tag_check/" , "tags_by_day_selected" , ".pdf"),
        plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1), 
        width = 15, height = 9)
 

@@ -43,6 +43,7 @@ df_1min$timestamp_CET  <- fasttime::fastPOSIXct(df_1min$timestamp_CET, tz="CET")
 #df_1min$start_datetime<- fasttime::fastPOSIXct(df_1min$start_datetime, tz="CET") # only of needed in further analysis
 #df_1min$stop_datetime <- fasttime::fastPOSIXct(df_1min$stop_datetime, tz="CET") # only of needed in further analysis
 
+# nrow= 2128539
 
 ## set range of "time_to_rise" as -5 to 18. Not all Individuals cover the whole range from -8.7 to 22.1 (all data). This max and min values will be used for cc-smoother. -5 to 18 is the range that all bird individuals fall into (see script "range_time_to_rise.R")
 nrow(df_1min[df_1min$time_to_rise_std<=18 & df_1min$time_to_rise_std>=-5,])/nrow(df_1min) # 95.4%
@@ -91,7 +92,6 @@ df_1min<- df_1min %>%
          species_en=="Eurasian_Jay" |
          species_en=="Eurasian_Blue_Tit"| 
          species_en=="Common_Chaffinch"|
-         species_en=="woodpecker"|
          species_en=="Wood_Warbler"
             ) %>% 
   droplevels() # subset of species with most individuals
@@ -120,9 +120,9 @@ df_10min <- df_1min %>%
             time_to_rise_std = mean(time_to_rise_std)) %>% 
   mutate(active_prop =  n_active/n_intervals)
 
-df_10min <- df_10min[seq(1, nrow(df_10min),1), ] # reduce data for faster plotting
+df_10min <- df_10min[seq(1, nrow(df_10min),5), ] # reduce data for faster plotting
 
-df_1min_short <- df_1min[seq(1, nrow(df_1min),20), ] # reduce data for faster modelling
+df_1min_short <- df_1min[seq(1, nrow(df_1min),1), ] # reduce data for faster modelling
 
 
 ##################################################################################################################
@@ -155,7 +155,7 @@ boxplot(time_to_rise_std ~ ring_ID,
 
 boxplot(time_to_rise_std ~ date_f, 
         data = df_1min,
-        xlab = "date", ylab = "Time to Sunrise") #  looks good overall
+        xlab = "date", ylab = "Time to Sunrise") #  looks good overall --> standardizing of time-to-sunrise seems to work fine!
 
 boxplot(time_to_rise_std ~ species_en, 
         data = df_1min,
@@ -164,21 +164,26 @@ boxplot(time_to_rise_std ~ species_en,
 hist(df_1min$coverage_daily)
 boxplot(coverage_daily ~ species_en, 
         data = df_1min,
-        xlab = "date", ylab = "Time to Sunrise") # including "coverage" does not improve the models
+        xlab = "date", ylab = "Time to Sunrise") # including "coverage" into the models does not improve the models
+# coverage of most tags > 90%
 
 # coverage year
 p<- df_1min %>% 
+  mutate(activity=1) %>% 
   ggplot(., aes(y = activity, x = ydate,
                 group = ring_ID, color = ring_ID)) +
   geom_point(alpha = .25, size = 2) + 
-  facet_wrap(~ species_en) + 
-  theme_bw(14) +
+  facet_wrap(~ species_en, ncol=1) + 
+  theme_bw() +
   theme(legend.position = "none")+
   ggtitle("coverage of data over year")+
-  xlab("Day of the Year")+
-  ylab("Activity")
-#ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "coverage_year" , ".png"),
-#       plot=p, width = 15, height = 9)
+  ylab("Activity")+
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank())
+
+ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "coverage_year" , ".png"),
+       plot=p, width = 15, height = 9)
 
 # activity over year:
 df<- data_new %>% 
@@ -191,7 +196,7 @@ ggplot(data = df,  aes(x = ydate, y = peak, group=ring_ID, color=ring_ID))+
   geom_hline(yintercept = 0.5, linetype = "dashed") +
   facet_wrap(~species_en)+
   theme(legend.position = "none")
-
+rm(df)
 
 ##################################################################################################################
 #### Models for circadian rhythm of bird activity (Daily rhythm)
@@ -293,7 +298,7 @@ testDispersion(simulationOutput) # underdispersion problem
 ## temporal autocorrelation
 # https://mran.microsoft.com/snapshot/2016-10-12/web/packages/itsadug/vignettes/acf.html
 acf_GI<- acf_resid(gam_I)
-start_value_rho(gam_GI, plot=TRUE) #0.27
+start_value_rho(gam_GI, plot=TRUE) #0.54
 start_value_rho(gam_I, plot=TRUE) #0.55
 
 
