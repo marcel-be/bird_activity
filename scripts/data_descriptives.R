@@ -163,7 +163,7 @@ plot_list[[4]]<- p3
 plot_list[[5]]<- p4
 plot_list[[6]]<- p5
 plot_list[[7]]<- p6
-plot_list[[8]]<- pweek2 # see further down in script!!!
+plot_list[[8]]<- pweek # see further down in script!!!
 
 
 ggsave(filename = paste0(path, "plots/data_overview/" , "summary" , ".pdf"),
@@ -184,7 +184,7 @@ df_1min_meta$hour <- hour(df_1min_meta$timestamp) # Hour of the day
 df_1min_meta$minute <- minute(df_1min_meta$timestamp)
 df_1min_meta$month_f <- factor(month(df_1min_meta$date))
 df_1min_meta$year_f <- factor(df_1min_meta$year)
-df_1min_meta$date <- date(df_1min_meta$date)
+df_1min_meta$date_f <- as.factor(as.character(df_1min_meta$date_CET))
 df_1min_meta$week <- week(df_1min_meta$timestamp)
 df_1min_meta$time_of_day <- as.numeric(as_hms(df_1min_meta$timestamp))/3600 # numeric time of day
 
@@ -225,33 +225,21 @@ df_1min_meta %>%
 #### create data with 10min-intervals for better overview (tag-check-plots)
   df_10min <- df_1min_meta %>% 
   mutate(species_en = as.factor(species_en),
-         interval   = as_hms(floor_date(timestamp, unit="10minutes"))) %>% 
-  group_by(ID,ring_ID,species_en,year_f,month,week,ydate,hour,interval) %>% 
+         interval   = as_hms(floor_date(timestamp_CET, unit="10minutes"))) %>% 
+  group_by(ID,ring_ID,species_en,year_f,month,week,date_f,ydate,hour,interval) %>% 
   summarise(n_intervals=length(activity),
             n_active=length(activity[activity==1]),
             n_passive=length(activity[activity==0]),
             time_of_day=mean(time_of_day),
+            time_to_rise_std=mean(time_to_rise_std),
             ring_ID=as.factor(ring_ID),
             ID=as.factor(ID),
             coverage_daily=as.factor(mean(coverage_daily))) 
 
-  df_10min$week_c <- as.numeric(scale(df_10min$week, scale = F)) # center weeks around the mean value (25)
-#df_10min$start.event <- ifelse(df_10min$time_of_day==min_set,T,F) # Identify start of the time series as 12 h since sunrise
-  
-# plott for weekly coverage of data:
-(pweek<- df_10min %>% 
-  ggplot(., aes(y = week, x = time_of_day, #z = n_active/n_intervals,
-                group = species_en, color = year_f)) +
-  geom_point(shape=1, alpha = .15, size = 2) + 
-  # geom_contour_filled() + 
-  # geom_density_2d(colour = "black", alpha = .5) +
-  scale_color_viridis(discrete = T) +
-  facet_wrap(~ species_en) + theme_bw(14) +
-  ggtitle("coverage of data by week"))
-ggsave(filename = paste0(path, "plots/data_overview/" , "coverage_week" , ".png"),
-       width = 15, height = 9)
 
-(pweek2<- df_10min %>% 
+# plott for weekly coverage of data:
+
+pweek<- df_10min %>% 
     ggplot(., aes(y = n_active/n_intervals, x = ydate,
                   group = species_en, color = year_f)) +
     geom_point(alpha = .25, size = 2) + 
@@ -259,7 +247,7 @@ ggsave(filename = paste0(path, "plots/data_overview/" , "coverage_week" , ".png"
     # geom_density_2d(colour = "black", alpha = .5) +
    # scale_color_viridis(discrete = T) +
     facet_wrap(~ species_en) + theme_bw(14) +
-    ggtitle("coverage of data by week"))+
+    ggtitle("coverage of data by week")+
     xlab("Day of the Year")+
     ylab("Activity")
 ggsave(filename = paste0(path, "plots/data_overview/" , "coverage_week" , ".png"),
@@ -339,10 +327,9 @@ for(i in 1:nlevels(df_10min$ID)){
   plot_list[[i]] <-p
 }
 
-ggsave(filename = paste0(path, "plots/tag_check/" , "tags_by_day_selection" , ".pdf"),
+ggsave(filename = paste0(path, "plots/tag_check/" , "tags_by_day" , ".pdf"),
        plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1), 
        width = 15, height = 9)
-
 
 
 # all tags that look odd (after first visual inspection of plots above):

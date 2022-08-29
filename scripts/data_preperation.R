@@ -96,7 +96,7 @@ df <-read.csv(paste0(path, "bird_data_active_passive/birds_activity_1min_2021/21
 df<- df %>% 
   filter(timestamp > "2021-06-01 06:00")%>% 
   filter(timestamp < "2021-06-08 06:00" | timestamp > "2021-07-01 00:00")
-write.csv(df, paste0(path, "birds_activity_1min_2021/210518_150077_40.csv"))
+write.csv(df, paste0(path, "bird_data_active_passive/birds_activity_1min_2021/210518_150077_40.csv"))
 
 
 
