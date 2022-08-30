@@ -250,14 +250,34 @@ gam_I<- bam(activity ~ species_en +
             data = df_1min_short)
 #summary(gam_I)
 
+## same model for bird individuals instead of species (draw activity-curve-values from this model)
+gam_I<- bam(activity ~ ring_ID +
+              s(time_to_rise_std, by=ring_ID, m=2,  bs="cc", k=50) + # no intercept-per-ID when using the "by"-argument --> specify separately (fixed or random)
+              s(species_en, bs="re") + # random intercept for each species
+              s(species_en, time_to_rise_std, bs="re") + # random slope for each species
+              s(date_f, bs="re"),  # k equals the number of levels of grouping variable
+            method ="fREML", 
+            family ="binomial",
+            discrete = T, 
+            knots=list(time_to_rise_std=c(min_set, max_set)),
+            rho= 0.53,
+            AR.start = df_1min_short$start.event,
+            data = df_1min_short)
+
+
 AIC(gam_GI, gam_I) # go for gam_I
+
+## save model
+
+saveRDS(gam_I, file=paste0(path,"bird_data_storage/models/gam_I_individuals.csv"))
+gam_I<- readRDS(paste0(path,"bird_data_storage/models/gam_I_individuals.csv"))
 
 #################################################################################################################
 #### Diagnostics
 
 ## check residuals
 #appraise(gam_I)
-par
+par(mfrow=c(2,2))
 gam.check(gam_I)
 
 E<- residuals(gam_I, type="pearson")
@@ -300,7 +320,7 @@ plot(E~df_1min_short$date_f)
 # https://mran.microsoft.com/snapshot/2016-10-12/web/packages/itsadug/vignettes/acf.html
 #acf_GI<- acf_resid(gam_I)
 start_value_rho(gam_GI, plot=TRUE) #0.54
-start_value_rho(gam_I, plot=TRUE) #0.53
+start_value_rho(gam_I, plot=TRUE) #0.52
 
 
 
@@ -354,6 +374,11 @@ pred <- predict.gam(gam_I,
 data_new$mu     <- exp(pred$fit)/(1+exp(pred$fit)) # inverse link function (logit scale)
 data_new$se_min <- exp(pred$fit + 1.96 * pred$se.fit) / (1+exp(pred$fit + 1.96 * pred$se.fit)) # 95% CV
 data_new$se_max <- exp(pred$fit - 1.96 * pred$se.fit) / (1+exp(pred$fit - 1.96 * pred$se.fit))
+
+
+## save model predictions
+fwrite(data_new, paste0(path,"bird_data_storage/model_prediction.csv"))
+data_new<- fread(paste0(path,"bird_data_storage/model_prediction.csv"))
 
 
 ## plot results
@@ -418,7 +443,9 @@ ggsave(filename = paste0(path, "plots/model_output/" , "circadian_species" , ".p
 data_new %>% 
   filter(time_to_rise_std == 0) %>% 
   group_by(species_en) %>% 
-  summarise(activity = mean(mu))
+  summarise(mean_act_at_sunrise = mu,
+            lower_act_at_sunrise = ci_lower, 
+            upper_act_at_sunrise = ci_upper)
 
 # activity > 0.5
 data_new %>% 
@@ -427,7 +454,7 @@ data_new %>%
   summarise(a.onset = as_hms(min(time_to_rise_std)*60),
             a.end = as_hms(max(time_to_rise_std)*60))
 
-# Peak activity: what are the two highest values for p(activity)?
+# Peak activity: what is the highest value for p(activity)?
 data_new %>% 
   group_by(species_en, ring_ID) %>% 
   filter(mu == max(mu)) %>% 
