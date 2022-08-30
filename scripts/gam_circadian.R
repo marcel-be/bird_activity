@@ -269,8 +269,8 @@ AIC(gam_GI, gam_I) # go for gam_I
 
 ## save model
 
-saveRDS(gam_I, file=paste0(path,"bird_data_storage/models/gam_I_individuals.csv"))
-gam_I<- readRDS(paste0(path,"bird_data_storage/models/gam_I_individuals.csv"))
+saveRDS(gam_I, file=paste0(path,"bird_data_storage/models/gam_I_individuals.rda"))
+gam_I<- readRDS(paste0(path,"bird_data_storage/models/gam_I_individuals.rda"))
 
 #################################################################################################################
 #### Diagnostics
@@ -377,8 +377,8 @@ data_new$se_max <- exp(pred$fit - 1.96 * pred$se.fit) / (1+exp(pred$fit - 1.96 *
 
 
 ## save model predictions
-fwrite(data_new, paste0(path,"bird_data_storage/model_prediction.csv"))
-data_new<- fread(paste0(path,"bird_data_storage/model_prediction.csv"))
+fwrite(data_new, paste0(path,"bird_data_storage/models/model_prediction.csv"))
+data_new<- fread(paste0(path,"bird_data_storage/models/model_prediction.csv"))
 
 
 ## plot results
