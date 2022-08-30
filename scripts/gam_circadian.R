@@ -245,7 +245,7 @@ gam_I<- bam(activity ~ species_en +
             family ="binomial",
             discrete = T, 
             knots=list(time_to_rise_std=c(min_set, max_set)),
-            rho= 0.55,
+            rho= 0.53,
             AR.start = df_1min_short$start.event,
             data = df_1min_short)
 #summary(gam_I)
@@ -257,6 +257,7 @@ AIC(gam_GI, gam_I) # go for gam_I
 
 ## check residuals
 #appraise(gam_I)
+par
 gam.check(gam_I)
 
 E<- residuals(gam_I, type="pearson")
@@ -290,16 +291,16 @@ plot(E~df_1min_short$date_f)
 
 
 # DHARMa
-simulationOutput <- simulateResiduals(fittedModel = gam_I, plot = F)
+#simulationOutput <- simulateResiduals(fittedModel = gam_I, plot = F)
 #plot(simulationOutput)
-testDispersion(simulationOutput) # underdispersion problem
+#testDispersion(simulationOutput) # underdispersion problem
 
 
 ## temporal autocorrelation
 # https://mran.microsoft.com/snapshot/2016-10-12/web/packages/itsadug/vignettes/acf.html
-acf_GI<- acf_resid(gam_I)
+#acf_GI<- acf_resid(gam_I)
 start_value_rho(gam_GI, plot=TRUE) #0.54
-start_value_rho(gam_I, plot=TRUE) #0.55
+start_value_rho(gam_I, plot=TRUE) #0.53
 
 
 
