@@ -104,7 +104,7 @@ df_1min<- start_event(df_1min, column="timestamp_CET", event="ID") # Package "it
 
 ## save final dataframe
 fwrite(df_1min, paste0(path, "bird_data_storage/tags_1_min_for_analysis.csv"))
-fread(paste0(path, "bird_data_storage/tags_1_min_for_analysis.csv"))
+df_1min<- fread(paste0(path, "bird_data_storage/tags_1_min_for_analysis.csv"))
 
 df_1min_short <- df_1min[seq(1, nrow(df_1min),1), ] # reduce data for faster modelling
 
@@ -353,17 +353,24 @@ data_new <- df_1min %>%
          time_to_rise_std = time_to_rise_std_seq)
 
 ## approach 2: predict for all possible dates (random factor "date_f") and then aggregate mean activity of all dates ("typical date") before plotting --> Mean activity-prediction (across all dates) for each datapoint of "time_to_rise" will be calculated. Prediction takes long! --> Similar to approach 3
+# Problem: for each bird all possible dates (2019-2021) are calculated
 time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
 data_new <- df_1min %>%  
   expand(nesting(species_en, ring_ID),date_f, time_to_rise_std_seq) %>% 
   rename(time_to_rise_std = time_to_rise_std_seq)
 
-## approach 3: Set "date_f" in new x-dataframe as "NA". Exclude "s(date_f)" in predict-function and make sure that newdata.guaranteed=TRUE. # Results are very similar to approach 2 . Much faster than approach 2, but no date-specific results. For comparison of different approaches see script "gam_prediction_comparison.R"
+## approach 3: Set "date_f" in new x-dataframe as "NA". Exclude "s(date_f)" in predict-function and make sure that newdata.guaranteed=TRUE. # Results are very similar to approach 2 (mean value for activity for a "typical" date). Much faster than approach 2, but no date-specific results. For comparison of different approaches see script "gam_prediction_comparison.R"
 time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
 data_new <- df_1min %>%  
   expand(nesting(species_en, ring_ID),time_to_rise_std_seq) %>% 
   rename(time_to_rise_std = time_to_rise_std_seq) %>% 
   mutate(date_f=NA)
+
+## approach 4: calculate predictions for all dates where birds were transmitting signals. Question: can this dates be compared with each other, as the data comes from different month/years?
+time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
+data_new <- df_1min %>%  
+  expand(nesting(species_en, ring_ID, date_f), time_to_rise_std_seq) %>% 
+  rename(time_to_rise_std = time_to_rise_std_seq)
 
 
 
@@ -463,78 +470,96 @@ rm(df)
 # either get all values from model that includes all data (for species level), or calculate one curve for each ID respectively (get activity values for each individual)
 # Curve-Values for IDs cannot be drawn from global model, as ID is only used as random factor (curves drawn towards a global pattern)
 
-## 1. activity values from global model (species):
+## activity values from global model (Individuals):
 
-# activity at time_to_rise_std = 0
+## 1. activity at time_to_rise_std = 0
 df<- data_new %>% 
   filter(time_to_rise_std == 0) %>% 
-  group_by(ring_ID, species_en) %>% 
+  group_by(ring_ID, species_en, date_f) %>% 
   summarise(act_at_sunrise_mean = mu,
             act_at_sunrise_lowerCI = ci_lower, 
             act_at_sunrise_upperCI = ci_upper)
 
-# activity > 0.5 (doesn´t make sence since some individuals don´t reach 0.5 activity margin)
+## 2. activity > 0.5 (doesn´t make sence since some individuals don´t reach 0.5 activity margin)
 df2<- data_new %>% 
   filter(mu > 0.5) %>% 
-  group_by(ring_ID,species_en) %>% 
+  group_by(ring_ID,species_en, date_f) %>% 
   summarise(#act_0.5_onset = as_hms(min(time_to_rise_std)*60), 
             #act_0.5_end = as_hms(max(time_to_rise_std)*60)) %>%   # output in minutes
             act_0.5_onset = min(time_to_rise_std), 
             act_0.5_end = max(time_to_rise_std)) %>%   # output in hours (decimal numbers)
   as.data.frame() %>% 
   select(-species_en) %>% 
-  left_join(df,., by="ring_ID")
+  left_join(df,., by=c("ring_ID","date_f"))
 
 
-# Peak activity: what is the highest value for p(activity)?
+## 3. Peak activity: what is the highest value for p(activity)?
 df3 <- data_new %>% 
-  group_by(ring_ID, species_en) %>% 
+  group_by(ring_ID, species_en, date_f) %>% 
   filter(mu == max(mu)) %>% 
   summarise(peak_act = max(mu),
             peak_act_lowerCI = ci_lower,
             peak_act_upperCI = ci_upper) %>% 
   as.data.frame() %>% 
   select(-species_en) %>% 
-  left_join(df2,., by="ring_ID")
+  left_join(df2,., by=c("ring_ID","date_f"))
 
-# mean activity 
+## 4. mean activity 
 df4<- data_new %>% 
-  group_by(species_en, ring_ID) %>% 
+  group_by(ring_ID, species_en,  date_f) %>% 
   summarise(mean_act = mean(mu)) %>% 
   as.data.frame() %>% 
   select(-species_en) %>% 
-  left_join(df3,., by="ring_ID")
+  left_join(df3,., by=c("ring_ID","date_f"))
 
-# Peak activity timing: time of day with maximum p(activity) --> makes little sense as the curves are very wobbly
+## 5. Peak activity timing: time of day with maximum p(activity) --> makes little sense as the curves are very wobbly
 df5<- data_new %>% 
-  group_by(ring_ID, species_en) %>% 
+  group_by(ring_ID, species_en, date_f) %>% 
   filter(mu == max(mu)) %>%  
   summarise(t.peak = time_to_rise_std) %>% 
+  as.data.frame() %>% 
   select(-species_en) %>% 
-  left_join(df4,., by="ring_ID")
+  left_join(df4,., by=c("ring_ID","date_f"))
 
-# area under the curve?
+## 6. area under the curve?
+# ...
+
+## 7. finding maximum and minimum slope (potential measures for "start" and "end" of activity)
+
+# df<- derivatives(gam_I, type = "central", term = "s(time_to_rise_std)", partial_match = TRUE) # works only for specific smoother, not the whole model-curve
+#ggplot(data = df, aes(x = data, y = derivative,
+#                      group=species, color=species))+
+ # geom_line(alpha = .8)
+
+data_new$diff<- NA
+data_new[2:nrow(data_new),]$diff<- diff(data_new$mu)
+
+df6<- data_new %>% 
+  group_by(ring_ID, species_en, date_f) %>% 
+  filter(diff == max(diff,na.rm=TRUE)) %>% 
+  summarise(steepest_ascend = mu,
+            steepest_ascend_lowerCI = ci_lower,
+            steepest_ascend_upperCI = ci_upper) %>% 
+  as.data.frame() %>%  
+  select(-species_en) %>% 
+  left_join(df5,., by=c("ring_ID","date_f"))
+
+df7<- data_new %>% 
+  group_by(ring_ID, species_en, date_f) %>% 
+  filter(diff == min(diff,na.rm=TRUE)) %>% 
+  summarise(steepest_descend = mu,
+            steepest_descend_lowerCI = ci_lower,
+            steepest_descend_upperCI = ci_upper) %>% 
+  as.data.frame() %>%  
+  select(-species_en) %>% 
+  left_join(df6,., by=c("ring_ID","date_f"))
 
 
-
-####################
-# finding maximum and minimum slope (potential measures for "start" and "end" of activity)
-df<- derivatives(gam_I, , type = "central", term = "s(time_to_rise_std)", partial_match = TRUE)
-df$species<- str_split_fixed(df$smooth, "species_en",2)[,2]
-
-ggplot(data = df, aes(x = data, y = derivative,
-                      group=species, color=species))+
-  geom_line(alpha = .8)
-
-df %>% 
-  group_by(species) %>% 
-  summarise(max(derivative))
 
 ## Larissa
 data_new_indiv_across_days <- data_new %>% 
-  group_by(id, time_to_rise_std) %>% 
-  #dplyr::select(-date) %>%
-  summarise_each(funs(mean)) 
+  group_by(ring_ID,time_to_rise_std) %>% 
+  summarise_each(funs(mean))  
 
 plot(data_new_indiv_across_days$mu)
 plot(diff(data_new_indiv_across_days$mu)) 
