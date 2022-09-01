@@ -534,93 +534,116 @@ df5<- data_new %>%
 data_new$diff<- NA
 data_new[2:nrow(data_new),]$diff<- diff(data_new$mu)
 
+data_new$diff_lowerCI<- NA
+data_new[2:nrow(data_new),]$diff_lowerCI<- diff(data_new$ci_lower)
+
+data_new$diff_upperCI<- NA
+data_new[2:nrow(data_new),]$diff_upperCI<- diff(data_new$ci_upper)
+
 df6<- data_new %>% 
   group_by(ring_ID, species_en, date_f) %>% 
   filter(diff == max(diff,na.rm=TRUE)) %>% 
-  summarise(steepest_ascend = mu,
-            steepest_ascend_lowerCI = ci_lower,
-            steepest_ascend_upperCI = ci_upper) %>% 
+  summarise(steepest_ascend = time_to_rise_std) %>% 
   as.data.frame() %>%  
   select(-species_en) %>% 
   left_join(df5,., by=c("ring_ID","date_f"))
 
 df7<- data_new %>% 
   group_by(ring_ID, species_en, date_f) %>% 
-  filter(diff == min(diff,na.rm=TRUE)) %>% 
-  summarise(steepest_descend = mu,
-            steepest_descend_lowerCI = ci_lower,
-            steepest_descend_upperCI = ci_upper) %>% 
+  filter(diff_lowerCI == max(diff_lowerCI,na.rm=TRUE)) %>% 
+  summarise(steepest_ascend_lowerCI = time_to_rise_std) %>% 
   as.data.frame() %>%  
   select(-species_en) %>% 
-  left_join(df6,., by=c("ring_ID","date_f"))
+  left_join(df6,., by=c("ring_ID","date_f")) #does this make sense???
+
+df8<- data_new %>% 
+  group_by(ring_ID, species_en, date_f) %>% 
+  filter(diff_upperCI == max(diff_upperCI,na.rm=TRUE)) %>% 
+  summarise(steepest_ascend_upperCI = time_to_rise_std) %>% 
+  as.data.frame() %>%  
+  select(-species_en) %>% 
+  left_join(df7,., by=c("ring_ID","date_f")) #does this make sense???
+
+
+df9<- data_new %>% 
+  group_by(ring_ID, species_en, date_f) %>% 
+  filter(diff == min(diff,na.rm=TRUE)) %>% 
+  summarise(steepest_descend = time_to_rise_std) %>% 
+  as.data.frame() %>%  
+  select(-species_en) %>% 
+  left_join(df8,., by=c("ring_ID","date_f"))
+
+df_act_charac <- df9
+
+## safe file
+fwrite(df_act_charac, paste0(path,"bird_data_storage/activity_characteristics/activity_characteristics.csv"))
 
 
 
-## Larissa
-data_new_indiv_across_days <- data_new %>% 
-  group_by(ring_ID,time_to_rise_std) %>% 
-  summarise_each(funs(mean))  
+###### plot in one pdf
 
-plot(data_new_indiv_across_days$mu)
-plot(diff(data_new_indiv_across_days$mu)) 
+plot_list<- list()
+
+for(i in 1:nlevels(data_new$ring_ID)){
+  
+  print(levels(data_new$ring_ID)[i])
+  
+  df<-  data_new %>% 
+    filter(ring_ID==levels(ring_ID)[i]) %>% 
+    droplevels()
+  
+  df_10min_sub<- df_10min %>% 
+    filter(ring_ID==levels(data_new$ring_ID)[i]) %>% 
+    droplevels()
+  
+  df_act_charac_sub<- df_act_charac %>% 
+    filter(ring_ID==levels(data_new$ring_ID)[i]) %>% 
+    droplevels() %>% 
+    summarise_each(funs(mean))
+  
+  name<- paste0(as.character(df$ring_ID[1]),
+                " | ", as.character(df$species_en[1]),
+                " | brood patch=", as.character(df_10min_sub$brood_patch[1]),
+                " | year=", as.character(df_10min_sub$year_f[1]),
+                " | sex=", as.character(df_10min_sub$sex[1]))
+  
+p<- df %>% 
+    group_by(time_to_rise_std) %>% 
+    summarise_each(funs(mean)) %>% 
+    ggplot(data = ., 
+           aes(x = time_to_rise_std, y = mu))+
+    geom_ribbon(aes(ymin = ci_lower ,
+                    ymax = ci_upper), 
+                fill = "grey", color = "grey") +
+    geom_line(size = .8) + 
+    geom_hline(yintercept = 0.5, linetype = "dashed") +
+    geom_hline(yintercept = df_act_charac_sub$peak_act, linetype = "dashed", color="steelblue", size=1) +
+      geom_text(aes(x=-3.5, label="peak activity", y=df_act_charac_sub$peak_act), colour="steelblue", angle=0, vjust = 1, text=element_text(size=11))+  
+    geom_vline(xintercept = 0, linetype = "dashed", color="orange", size=1)+
+      geom_text(aes(x=0, label="sunrise", y=0), colour="orange", angle=0, hjust = 1.1, text=element_text(size=11))+
+    geom_vline(xintercept = df_act_charac_sub$steepest_ascend, linetype = "dashed", color="green",  size=1) +
+      geom_text(aes(x=df_act_charac_sub$steepest_ascend, label="activity \n onset", y=0.25), colour="green", angle=0, hjust = -0.1, text=element_text(size=11))+
+    geom_vline(xintercept = df_act_charac_sub$steepest_descend, linetype = "dashed", color="red", size=1) +
+      geom_text(aes(x=df_act_charac_sub$steepest_descend, label="activity \n offset", y=0.25), colour="red", angle=0, hjust = -0.1, text=element_text(size=11))+
+    theme_bw(14) +
+    xlab("Time since sunrise") + 
+    ylab("Activity probability \n") + 
+    ylim(0, 1)+
+    ggtitle(name)
+
+  plot_list[[i]] <-p
+}
+  
+  ggsave(filename = paste0(path, "plots/model_output/" , "activity_characteristics" , ".pdf"),
+         plot = gridExtra::marrangeGrob(plot_list, nrow=2, ncol=2), 
+         width = 15, height = 9)
+  
+  
 
 
-
-
-
-########################################################################
-#### plotting larissa
-
-# sunrise
-data_indiv_activity_at_sunrise %>% 
-  ggplot(aes(y = id, x = mean_act_at_sunrise)) +
-  geom_point() +
-  geom_pointrange(aes(xmin = lower_act_at_sunrise, xmax = upper_act_at_sunrise)) +
-  theme_bw() +
-  xlim(0, 1) +
-  ylab("ID") +
-  xlab("Mean probability of activity at sunrise")
-
-
-# peak activity
-data_new_indiv %>% 
-  group_by(time_to_rise_std) %>% 
-  summarise_each(funs(mean)) %>% 
-  ggplot(aes(x = time_to_rise_std, y = mu))+
-  geom_ribbon(aes(ymin = ci_lower ,
-                  ymax = ci_upper), 
-              fill = "grey", color = "grey") +
-  geom_line(size = .8) + 
-  geom_point(data = max_activity, 
-             aes(x = time_to_rise_std, y = mu),
-             col = "red", size = 3) +
-  geom_vline(xintercept = max_activity$time_to_rise_std, linetype = "dotted", color = "red") +
-  geom_hline(yintercept = 0.5, linetype = "dashed") +
-  theme_bw(14) +
-  xlab("Time since sunrise") + 
-  ylab("Activity probability \n") + 
-  ylim(0, 1) +
-  ggtitle("150007_0_10_1")
-
-data_new_indiv_NEW %>% 
-  # group_by(time_to_rise_std) %>% 
-  # summarise_each(funs(mean)) %>% 
-  ggplot(aes(x = time_to_rise_std, y = mu)) +
-  geom_ribbon(aes(ymin = ci_lower ,
-                  ymax = ci_upper), 
-              fill = "grey", color = "grey") +
-  geom_line(aes(group = 1, color = act_over_05), size = .8) + 
-  geom_point(data = max_activity, 
-             aes(x = time_to_rise_std, y = mu),
-             col = "red", size = 3) +
-  geom_vline(xintercept = max_activity$time_to_rise_std, linetype = "dotted", color = "red") +
-  geom_hline(yintercept = 0.5, linetype = "dashed") +
-  theme_bw(14) +
-  xlab("Time since sunrise") + 
-  ylab("Activity probability \n") + 
-  ylim(0, 1) +
-  ggtitle("150007_0_10_1")
-
+  plot_list[[1]]
+  plot_list[[2]]
+  plot_list[[3]]
 
 
 

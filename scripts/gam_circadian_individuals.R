@@ -124,8 +124,8 @@ data_new %>%
 
 
 ##########################################################################################################
-## 3. Activity values for all Individuals
-# possible to loop over all IDs and write all value into one table for further analysis
+## 3. Activity curves for all Tags/Individuals
+# the loop creates one ativity curve for each Tag and attaches the daily activity-plots. The output is used to check for raw-data-issues
 
 plot_list<- list()
 n_ID<- nlevels(df_1min$ID)
@@ -248,3 +248,8 @@ for(i in 1:nlevels(df_1min$ID)){
 ggsave(filename = paste0(path, "plots/model_output/" , "curve_by_tag" , ".pdf"),
        plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1), 
        width = 15, height = 9)
+
+
+##########################################################################################################
+## 3. Determine activity characterstics of all Individuals
+
