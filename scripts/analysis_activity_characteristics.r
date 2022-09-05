@@ -13,8 +13,7 @@ boxplot(df$act_at_sunrise_mean ~ df$species_en)
 boxplot(df$act_at_sunrise_mean ~ df$ring_ID)
 
 
-########################################################################
-#### plotting larissa
+
 
 # sunrise
 df %>% 
@@ -26,8 +25,56 @@ df %>%
   theme_bw() +
   xlim(0, 1) +
   ylab("ID") +
+  xlab("Mean probability of activity at sunrise") # problem: how to deal with uncertainty???
+
+df %>%   
+  ggplot(aes(y = fct_reorder(ring_ID, act_at_sunrise_mean), x = act_at_sunrise_mean, color=species_en)) +
+  geom_boxplot() +
+  theme_bw() +
+  xlim(0, 1) +
+  ylab("ID") +
   xlab("Mean probability of activity at sunrise")
 
+df %>%   
+  ggplot(aes(y = fct_reorder(species_en, act_at_sunrise_mean), x = act_at_sunrise_mean, color=species_en)) +
+  geom_boxplot() +
+  theme_bw() +
+  xlim(0, 1) +
+  ylab("ID") +
+  xlab("Mean probability of activity at sunrise")
+
+
+
+# activity onset
+df %>% 
+  group_by(ring_ID,species_en) %>% 
+  summarise_each(funs(mean)) %>%  
+  ggplot(aes(y = fct_reorder(ring_ID, steepest_ascend), x = steepest_ascend, group=species_en, color=species_en)) +
+  geom_point() +
+  geom_pointrange(aes(xmin = steepest_ascend_lowerCI, xmax = steepest_ascend_upperCI)) +
+  theme_bw() +
+  xlim(0, 1) +
+  ylab("ID") +
+  xlab("Mean probability of activity at sunrise")
+
+df %>% 
+  group_by(species_en) %>% 
+  summarise_each(funs(mean)) %>%  
+  ggplot(aes(y = fct_reorder(species_en, act_at_sunrise_mean), x = act_at_sunrise_mean, group=species_en, color=species_en)) +
+  geom_point() +
+  geom_pointrange(aes(xmin = act_at_sunrise_lowerCI, xmax = act_at_sunrise_upperCI)) +
+  theme_bw() +
+  xlim(0, 1) +
+  ylab("ID") +
+  theme(legend.position = "none")+
+  xlab("Mean probability of activity at sunrise")
+
+
+
+
+
+########################################################################
+#### plotting larissa
 
 # peak activity
 data_new_indiv %>% 
