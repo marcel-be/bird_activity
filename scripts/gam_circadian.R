@@ -400,6 +400,10 @@ fwrite(data_new, paste0(path,"bird_data_storage/models/model_prediction.csv"))
 #######################################################################################################
 #### 7. plot results ####
 
+data_new_agg<- data_new %>% 
+  group_by(species_en, time_to_rise_std) %>% 
+  summarise_each(funs(mean))
+
 ## at individual level (one curve per individual - use individual model)
 p<- data_new %>% 
   group_by(species_en, ring_ID, time_to_rise_std) %>% 
@@ -407,12 +411,14 @@ p<- data_new %>%
 ggplot(data = ., 
        aes(x = time_to_rise_std, y = mu, 
            color = ring_ID, group = ring_ID))+
+  geom_ribbon(data = data_new_agg,
+              aes(ymin = ci_lower ,
+                  ymax = ci_upper), 
+              fill = "grey", color = "grey", alpha=0.6) +
   #geom_point(data=df_10min, alpha = .1, 
   #           aes(x = time_to_rise_std, y = n_active/n_intervals)) +
-  geom_ribbon(aes(ymin = ci_lower ,
-                  ymax = ci_upper), 
-              fill = "grey", color = "grey") +
-  geom_line(size = .8) + 
+  geom_line(size = .7) +
+  geom_line(data=data_new_agg, aes(x = time_to_rise_std, y = mu), color="black", size=1.1, alpha=0.5)+
   geom_hline(yintercept = 0.5, linetype = "dashed") +
   #scale_color_wsj() +
   theme_bw(14) +
@@ -424,6 +430,8 @@ ggplot(data = .,
   facet_wrap(~species_en)
 ggsave(filename = paste0(path, "plots/model_output/" , "circadian_ID" , ".png"),
        plot=p, width = 15, height = 9)
+
+
 
 ## at species level (one curve per species - use species model)
 p<- data_new %>% 

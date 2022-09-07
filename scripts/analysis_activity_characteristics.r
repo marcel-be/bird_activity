@@ -11,6 +11,11 @@ df<- fread(paste0(path,"bird_data_storage/activity_characteristics/activity_char
 df$date_f<- as.factor(as.character(df$date_f))
 str(df)
 
+df_agg<- df %>% 
+  group_by(ring_ID,species_en) %>% 
+  summarise_each(funs=mean)
+
+
 #####################################################################################
 # sunrise
 df %>% 
@@ -125,6 +130,7 @@ df %>%
             sd = sd(steepest_ascend)) %>%   
   ggplot(data=., aes(y = fct_reorder(species_en, mean), x = mean, group=species_en, color=species_en)) +
   geom_point(size=2) +
+  geom_point(data=df_agg, aes(y= species_en,x = steepest_ascend), col="black")+
   geom_pointrange(aes(xmin = mean-sd, xmax = mean+sd), size=1) +
   theme_light() +
   theme(axis.text=element_text(size=12),
@@ -142,34 +148,77 @@ mod3<- glmmTMB(steepest_ascend ~  species_en + (1|ring_ID), data=df)
 summary(mod3)
 car::Anova(mod3)
 
-
-mod2<- glmmTMB(steepest_ascend ~  ring_ID, data=df)
-summary(mod2)
-
-AIC(mod1, mod2)
-
-
 df$E<- residuals(mod3, type="pearson")
 df$fit<- fitted(mod3)
 
 ggplot(data=df, aes(y=E, x=fit))+
   geom_point(alpha=0.2)+
-  xlab("Fitted values") +
-  ylab("Pearson residuals")+
-  theme(text = element_text(size=15))+
   geom_hline(yintercept=0)+
-  #geom_smooth(se=F)+
   facet_wrap(~species_en)
 
 plot(df$E~df$species_en)
 
 
 
+############################################################################################
+# activity end
+
+df %>% 
+  filter(ring_ID != "90850007") %>% 
+  group_by(ring_ID,species_en) %>% 
+  summarise(mean = mean(steepest_descend),
+            sd = sd(steepest_descend)) %>%  
+  ggplot(data=., aes(y = fct_reorder(ring_ID, mean), x = mean, group=species_en, color=species_en)) +
+  geom_point() +
+  geom_pointrange(aes(xmin = mean-sd, xmax = mean+sd)) +
+  theme_light() +
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        legend.position = c(0.85, 0.3),
+        legend.title =  element_text(size=14),
+        legend.text = element_text(size=12))+
+  scale_colour_discrete("Species")+
+  #xlim(0, 1) +
+  ylab("Bird Individual") +
+  xlab("Mean time of activity end \n (centered around time of sunrise)") 
+
+ggsave(filename = paste0(path, "plots/model_output/analysis_activity/" , "activity_end_individuals" , ".png"),
+       width = 8, height = 10)
+
+df %>% 
+  filter(ring_ID != "90850007") %>% 
+  group_by(species_en) %>% 
+  summarise(mean = mean(steepest_descend),
+            sd = sd(steepest_descend)) %>%   
+  ggplot(data=., aes(y = fct_reorder(species_en, mean), x = mean, group=species_en, color=species_en)) +
+  geom_point(size=2) +
+  geom_point(data=df_agg, aes(y= species_en,x = steepest_descend), col="black")+
+  geom_pointrange(aes(xmin = mean-sd, xmax = mean+sd), size=1) +
+  theme_light() +
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        legend.position = "none")+
+  #xlim(0, 1) +
+  ylab("Species") +
+  xlab("Mean time of activity end \n (centered around time of sunrise)")
+
+ggsave(filename = paste0(path, "plots/model_output/analysis_activity/" , "activity_end_species" , ".png"),
+       width = 8, height = 10)
 
 
-ggplot(df, aes(x=steepest_ascend, y= act_at_sunrise_mean, group=ring_ID, color=ring_ID))+
-  geom_point()+
+mod3<- glmmTMB(steepest_ascend ~  species_en + (1|ring_ID), data=df)
+summary(mod3)
+car::Anova(mod3)
+
+df$E<- residuals(mod3, type="pearson")
+df$fit<- fitted(mod3)
+
+ggplot(data=df, aes(y=E, x=fit))+
+  geom_point(alpha=0.2)+
+  geom_hline(yintercept=0)+
   facet_wrap(~species_en)
+
+plot(df$E~df$species_en)
 
 
 
