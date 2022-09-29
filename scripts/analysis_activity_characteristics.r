@@ -4,6 +4,7 @@ library(data.table)
 library(DHARMa)
 library(glmmTMB)
 library(viridis)
+library(scico)
 
 
 path<- "J:/rts/rts_activity/"
@@ -16,6 +17,17 @@ str(df)
 
 df<- df %>%   
   filter(ring_ID != "90850007")
+
+  filter(ring_ID != "90850086")%>%   
+  filter(ring_ID != "90619209") %>% 
+  filter(ring_ID != "90619211") %>% 
+  filter(ring_ID != "90619324") %>% 
+  filter(ring_ID != "7974327") %>% 
+  filter(species_en== "Common_Blackbird" |
+         species_en== "Eurasian_Blackcap"|
+         species_en== "Eurasian_Jay"|
+         species_en== "Great_Tit") %>% 
+  droplevels()
 
 
 df$ring_ID_num <- NA
@@ -114,8 +126,9 @@ df %>%
   geom_pointrange(aes(xmin = mean-sd, xmax = mean+sd), size=1.2) +
   #geom_point(data=df_agg_ind, aes(y = species_en,x = mean_start, group=species_en, color=species_en), position=position_jitter(width=0, height=0.5))+
   geom_pointrange(data= df_agg_ind, aes(y = fct_reorder(species_en, ring_ID_num), x = mean_start, xmin = mean_start-sd_start, xmax = mean_start+sd_start), size=0.3, orientation="y", position=position_jitter(width=0, height=0.5)) +
-  scale_color_brewer(palette="Dark2")+
+ #scale_color_brewer(palette="Dark2")+
  #scale_color_viridis(discrete = TRUE, option = "C")+
+  scale_colour_scico_d(palette = 'vikO')+
   theme_light() +
   theme(axis.text=element_text(size=12),
         axis.title=element_text(size=14,face="bold"),
@@ -279,33 +292,25 @@ data_new_indiv_NEW %>%
 # Variance Component Analysis ####
 
 ## ANOVA
-nest <- aov(df$steepest_ascend ~ df$species_en +  df$species_en:df$ring_ID)
-summary(nest)
-car::Anova(nest)
-car::Anova(lm(steepest_ascend ~ species_en +  species_en:ring_ID, df), type='3')
-#https://www.flutterbys.com.au/stats/tut/tut9.2a.html
+act_start <- aov(df$steepest_ascend ~ df$species_en / df$ring_ID)
+summary(act_start)
+car::Anova(act_start)
+
+summary(glmmTMB(steepest_ascend ~ species_en + (1|ring_ID), data=df))
 
 ## VCA Package 
 
 library(VCA)
-df<- as.data.frame(df)
+df_vca<- as.data.frame(df_vca)
 
-vca <-  fitVCA(steepest_ascend ~ species_en/ring_ID, df)
+vca <-  fitVCA(act_at_sunset_mean ~ species_en/ring_ID, df_vca , method="anova")
 vca
-
 inf <- VCAinference(vca, VarVC=TRUE)
 inf
+
+plotRandVar(vca, term="species_en:ring_ID", mode="student", pick=T) 
+abline(h=c(-3, 3), lty=2, col="red", lwd=2)
+mtext(side=4, at=c(-3, 3), col="red", line=.25, las=1, text=c(-3, 3))
 ############ CHECK
 
 
-## Factor "species_en" and "ring_ID" as numbers (as in package-example)
-# makes no difference!
-
-
-# for species
-
-#df_vca$ring_ID_num<- as.factor(as.character(df_vca$ring_ID_num))
-df_vca <- as.data.frame(df_vca)
-
-vca2 <-  fitVCA(steepest_ascend ~ species_en_num/ring_ID_num, df_vca, method = c("anova"))
-vca2
