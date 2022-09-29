@@ -130,7 +130,7 @@ a<- seq(1,(2*n_ID)-1, length.out=n_ID)
 b<- seq(2, 2*n_ID   , length.out=n_ID)
 data_new_final<- data.frame()
 
-for(i in 1:nlevels(df_1min$ring_ID)){
+for(i in 63:nlevels(df_1min$ring_ID)){
   
   print(levels(df_1min$ring_ID)[i])
   
