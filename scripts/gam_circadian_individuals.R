@@ -163,10 +163,12 @@ for(i in 1:nlevels(df_1min$ring_ID)){
         rho= rho,
         data = .)
   
-  time_to_rise_std_seq<- seq(min_set,max_set, length.out=100)
+  time_to_rise_std_seq<- seq(min_set,max_set, length.out=1000)
   data_new <- df%>% 
-    expand(nesting(ring_ID, date_f), time_to_rise_std_seq) %>% 
+    expand(nesting(species_en,ring_ID, date_f), time_to_rise_std_seq) %>% 
     rename(time_to_rise_std = time_to_rise_std_seq)
+  
+  data_new$time_to_rise_std[data_new$time_to_rise_std == -min(abs(data_new$time_to_rise_std))] <- 0 # get activity predictions for time of sunrise
   
   ## get predicted values
   pred <- predict.gam(gam, 
@@ -176,8 +178,8 @@ for(i in 1:nlevels(df_1min$ring_ID)){
                       se = TRUE, 
                       type="link")
   data_new$mu     <- exp(pred$fit)/(1+exp(pred$fit)) # inverse link function (logit scale)
-  data_new$se_min <- exp(pred$fit + 1.96 * pred$se.fit) / (1+exp(pred$fit + 1.96 * pred$se.fit)) # 95% CV
-  data_new$se_max <- exp(pred$fit - 1.96 * pred$se.fit) / (1+exp(pred$fit - 1.96 * pred$se.fit))
+  data_new$ci_lower <- exp(pred$fit + 1.96 * pred$se.fit) / (1+exp(pred$fit + 1.96 * pred$se.fit)) # 95% CV
+  data_new$ci_upper <- exp(pred$fit - 1.96 * pred$se.fit) / (1+exp(pred$fit - 1.96 * pred$se.fit))
   
   data_new_final<- rbind(data_new_final, data_new)
 
@@ -234,13 +236,14 @@ ggsave(filename = paste0(path, "plots/model_output/" , "curve_by_individual" , "
 fwrite(data_new_final, paste0(path,"bird_data_storage/models/model_prediction_individuals.csv"))
 
 
+
 #################################################################################################################################
-#### 3. Extract timing of activity values (from final curve) ####
+#### 4. Plot Model Results (one curve per individual)
 
 # Exclude: 
-# 150062_20 & 2019−07−08
-# 150082_2_20_1 & 2019−07−28
-# 150100_1_40_1 & 2021−04−21
+# 90619209 & 2019−07−08
+# 6415106 & 2019−07−28
+# 90619323 & 2021−04−21
 
 df_10min<- fread(paste0(path, "bird_data_storage/tags_10_min_for_plotting.csv"), stringsAsFactors = T)
 data_new<- fread(paste0(path,"bird_data_storage/models/model_prediction_individuals.csv"), stringsAsFactors=T)
@@ -248,43 +251,96 @@ data_new$date_f<- as.factor(as.character(data_new$date_f))
 df_1min<- fread(paste0(path, "bird_data_storage/tags_1_min_for_analysis.csv"), stringsAsFactors = T)
 df_1min$date_f <- as.factor(as.character(df_1min$date_f))
 
-data_new %>% 
-  filter(ID!="150062_20" & date_f!="2019−07−08") #TEST
+data_new<- data_new %>% 
+  filter(ring_ID!="90619209" & date_f!="2019−07−08") %>% 
+  filter(ring_ID!="6415106" & date_f!="2019−07−28") %>% 
+  filter(ring_ID!="90619323" & date_f!="2019−07−08")  #more?!
+
+
+data_new_agg<- data_new %>% 
+  group_by(species_en, time_to_rise_std) %>% 
+  summarise_each(funs(mean))
+
+## at individual level (one curve per individual)
+p<- data_new %>% 
+  group_by(species_en, ring_ID, time_to_rise_std) %>% 
+  summarise_each(funs(mean)) %>% 
+  ggplot(data = ., 
+         aes(x = time_to_rise_std, y = mu, 
+             color = ring_ID, group = ring_ID))+
+  geom_ribbon(aes(ymin = ci_lower ,
+                  ymax = ci_upper), 
+              fill = "grey", color = "grey", alpha=0.6) +
+  #geom_point(data=df_10min, alpha = .1, 
+  #           aes(x = time_to_rise_std, y = n_active/n_intervals)) +
+  geom_line(size = .7) +
+  #geom_line(data=data_new_agg, aes(x = time_to_rise_std, y = mu), color="black", size=1.1, alpha=0.5)+
+  geom_hline(yintercept = 0.5, linetype = "dashed") +
+  #scale_color_wsj() +
+  theme_bw(14) +
+  xlab("Time since sunrise") + 
+  ylab("Activity probability \n") + 
+  ylim(0, 1) +
+  #theme(legend.position = c(0.85,0.88))+
+  theme(legend.position = "none") +
+  facet_wrap(~species_en)
+ggsave(filename = paste0(path, "plots/model_output/date_specific_models/" , "circadian_ID" , ".png"),
+       plot=p, width = 15, height = 9)
+
+
+data_new_agg2 <- data_new_agg[seq(1, nrow(data_new_agg),10), ] 
+
+p<- ggplot(data_new_agg2, aes(x = time_to_rise_std, y = mu))+
+  geom_line()+
+  facet_wrap(~species_en)
+
+
+#################################################################################################################################
+#### 4. Extract timing of activity values (from final curve) ####
 
 ## activity values from global model (Individuals):
 
 ## 1. activity at time_to_rise_std = 0
-df<- data_new %>% 
+df1<- data_new %>% 
   filter(time_to_rise_std == 0) %>% 
-  group_by(ring_ID, species_en, date_f) %>% 
-  summarise(act_at_sunrise_mean = mu,
-            act_at_sunrise_lowerCI = ci_lower, 
-            act_at_sunrise_upperCI = ci_upper)
+  group_by(ring_ID, date_f) %>% 
+  summarise(act_at_sunrise_mean = mu)
 
 
-## 3. Peak activity: what is the highest value for p(activity)?
-df3 <- data_new %>% 
-  group_by(ring_ID, species_en, date_f) %>% 
+## 2. Peak activity: what is the highest value for p(activity)?
+df2 <- data_new %>% 
+  group_by(ring_ID,  date_f) %>% 
   filter(mu == max(mu)) %>% 
-  summarise(peak_act = max(mu),
-            peak_act_lowerCI = ci_lower,
-            peak_act_upperCI = ci_upper) %>% 
+  summarise(peak_act = max(mu)) %>% 
   as.data.frame() %>% 
-  select(-species_en) %>% 
-  left_join(df2,., by=c("ring_ID","date_f"))
+  left_join(df1,., by=c("ring_ID","date_f"))
 
-## 4. mean activity 
-df4<- data_new %>% 
-  group_by(ring_ID, species_en,  date_f) %>% 
+## 3. mean activity 
+df3<- data_new %>% 
+  group_by(ring_ID,  date_f) %>% 
   summarise(mean_act = mean(mu)) %>% 
   as.data.frame() %>% 
-  select(-species_en) %>% 
-  left_join(df3,., by=c("ring_ID","date_f"))
+  left_join(df2,., by=c("ring_ID","date_f"))
 
 ## 5. Peak activity timing: time of day with maximum p(activity) --> makes little sense as the curves are very wobbly
 
 ## 6. area under the curve?
-# ...
+
+data_new_lst<- split(data_new, list(data_new$ring_ID, data_new$date_f),drop=T)
+
+data_new_lst<- lapply(data_new_lst, function(x){
+  cbind(x, auc = DescTools::AUC(x=x$time_to_rise_std, y=x$mu))
+})
+
+df_auc<- bind_rows(data_new_lst)
+
+df4<- df_auc %>% 
+  group_by(ring_ID,  date_f) %>% 
+  summarise(auc = mean(auc)) %>% 
+  as.data.frame() %>% 
+  left_join(df3,., by=c("ring_ID","date_f"))
+
+
 
 ## 7. finding maximum and minimum slope (potential measures for "start" and "end" of activity)
 
@@ -295,10 +351,9 @@ df4<- data_new %>%
 # no idea if calculating the CI makes any sense here...
 
 
-
 data_new_diff<- data.frame()
 
-for(i in 1:nlevels(data_new$ring_ID)){ # find a nicer, vectorized approach!
+for(i in 1:nlevels(data_new$ring_ID)){ # find a nicer, vectorized approach! (Problem, that nrow[output df] < nrow[data_new])
   
   diff_1 <- data_new %>% 
     filter(ring_ID==levels(ring_ID)[i]) %>% 
@@ -318,24 +373,22 @@ for(i in 1:nlevels(data_new$ring_ID)){ # find a nicer, vectorized approach!
 }
 
 # steepest_ascend:
-df6<- data_new_diff %>% 
-  group_by(ring_ID, species_en, date_f) %>% 
-  filter(time_since_sunrise_std >= -1.5 & time_since_sunrise_std <= 2.25)%>% 
+df5<- data_new_diff %>% 
+  group_by(ring_ID, date_f) %>% 
+  filter(time_to_rise_std >= -1.5 & time_to_rise_std <= 2.25)%>% 
   filter(diff == max(diff,na.rm=TRUE)) %>% 
   summarise(steepest_ascend = time_to_rise_std) %>% 
-  as.data.frame() %>%  
-  select(-species_en) %>% 
-  left_join(df5,., by=c("ring_ID","date_f"))
+  as.data.frame() %>% 
+  left_join(df4,., by=c("ring_ID","date_f"))
 
 # steepest_descend
-df9<- data_new_diff %>% 
-  group_by(ring_ID, species_en, date_f)  %>% 
-  filter(time_since_sunrise_std >= 13 & time_since_sunrise_std <= 17)%>% 
+df6<- data_new_diff %>% 
+  group_by(ring_ID, date_f)  %>% 
+  filter(time_to_rise_std >= 13 & time_to_rise_std <= 17)%>% 
   filter(diff == min(diff,na.rm=TRUE)) %>% 
   summarise(steepest_descend = time_to_rise_std) %>% 
   as.data.frame() %>%  
-  select(-species_en) %>% 
-  left_join(df8,., by=c("ring_ID","date_f"))
+  left_join(df5,., by=c("ring_ID","date_f"))
 
 
 # 8. Time of sunset of each date
@@ -351,20 +404,17 @@ dfXX<- df_1min %>%
 # 9. Activity at sunset
 # the mean daylength that was used to standardize "time to rise" is 15.51328
 sunset<- data_new[which(abs(data_new$time_to_rise_std - 15.51328) == min(abs(data_new$time_to_rise_std - 15.51328)))]$time_to_rise_std[1]
-df12<- data_new %>% 
+df7<- data_new %>% 
   filter(time_to_rise_std == sunset) %>% 
-  group_by(ring_ID, species_en, date_f) %>% 
-  summarise(act_at_sunset_mean = mu,
-            act_at_sunset_lowerCI = ci_lower, 
-            act_at_sunset_upperCI = ci_upper)%>% 
-  as.data.frame %>% 
-  select(-species_en) %>% 
-  left_join(df11,., by=c("ring_ID","date_f"))
+  group_by(ring_ID, date_f) %>% 
+  summarise(act_at_sunset_mean = mu) %>% 
+  as.data.frame()  %>% 
+  left_join(df6,., by=c("ring_ID","date_f"))
 
-df_act_charac <- df12
+df_act_charac <- df7
 
 ## safe file
-fwrite(df_act_charac, paste0(path,"bird_data_storage/activity_characteristics/activity_characteristics.csv"))
+fwrite(df_act_charac, paste0(path,"bird_data_storage/activity_characteristics/activity_characteristics_individual.csv"))
 
 
 ###### plot per Individual AND date in one pdf (for Evaluation of steepest_de/ascent only!)
@@ -380,21 +430,22 @@ for(i in 1:nlevels(data_new$ring_ID)){ #nlevels(data_new$ring_ID)
     droplevels()
   
   for(j in 1:nlevels(df$date_f)){
-    
+  
+  print(levels(df$date_f)[j])
+      
   df_date<-  df %>% 
       filter(date_f==levels(date_f)[j]) %>% 
       droplevels()
   
-
   df_act_charac_sub<- df_act_charac %>% 
     filter(ring_ID==levels(data_new$ring_ID)[i]) %>% 
-    filter(date_f==levels(ddf$date_f)[j])
+    filter(date_f==levels(df$date_f)[j]) %>% 
     droplevels() #%>% 
    # summarise_each(funs(mean))
   
   name<- paste0(as.character(df$ring_ID[1]),
-                " | ", as.character(df$species_en[1]),
-                " | date=", as.character(df_date$date_f[1]),
+               # " | ", as.character(df$species_en[1]),
+                " | date=", as.character(df_date$date_f[1])
                )
   
   p<- df %>% 
@@ -427,9 +478,10 @@ for(i in 1:nlevels(data_new$ring_ID)){ #nlevels(data_new$ring_ID)
   }
 }
 
-ggsave(filename = paste0(path, "plots/model_output/" , "activity_characteristics" , ".pdf"),
+ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "activity_characteristics_individual" , ".pdf"),
        plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1), 
        width = 15, height = 9)
+
 
 
 ###### plot per Individual in one pdf
@@ -489,7 +541,7 @@ for(i in 1:nlevels(data_new$ring_ID)){ #nlevels(data_new$ring_ID)
   plot_list[[i]] <-p
 }
 
-ggsave(filename = paste0(path, "plots/model_output/" , "activity_characteristics" , ".pdf"),
+ggsave(filename = paste0(path, "plots/model_output/date_specific model" , "activity_characteristics" , ".pdf"),
        plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1), 
        width = 15, height = 9)
 
