@@ -138,8 +138,10 @@ for(i in 1:nlevels(df_1min$ring_ID)){
     filter(ring_ID==levels(ring_ID)[i]) %>% 
     droplevels()
   
-  min_set  <- min(df$time_to_rise_std)
-  max_set  <- max(df$time_to_rise_std)
+  min_set  <- -5
+  max_set  <- 18
+  #min_set  <- min(df$time_to_rise_std)
+  #max_set  <- max(df$time_to_rise_std)
   
   gam <- bam(activity ~ 
                s(time_to_rise_std, by=date_f, m=2,  bs="cc", k=35)+
@@ -164,12 +166,11 @@ for(i in 1:nlevels(df_1min$ring_ID)){
         data = .)
   
   time_to_rise_std_seq<- seq(min_set,max_set, length.out=1000)
-  data_new <- df%>% 
+  time_to_rise_std_seq[1] <- 0  # get activity predictions for time of sunrise
+  data_new <- df %>% 
     expand(nesting(species_en,ring_ID, date_f), time_to_rise_std_seq) %>% 
     rename(time_to_rise_std = time_to_rise_std_seq)
-  
-  data_new$time_to_rise_std[data_new$time_to_rise_std == -min(abs(data_new$time_to_rise_std))] <- 0 # get activity predictions for time of sunrise
-  
+
   ## get predicted values
   pred <- predict.gam(gam, 
                       newdata = data_new, 
@@ -192,8 +193,8 @@ for(i in 1:nlevels(df_1min$ring_ID)){
   p<- data_new %>% 
     ggplot(data = ., 
            aes(x = time_to_rise_std, y = mu, group=date_f, color=date_f))+
-    geom_ribbon(aes(ymin = se_min ,
-                    ymax = se_max), 
+    geom_ribbon(aes(ymin = ci_lower ,
+                    ymax = ci_upper), 
                 fill = "grey", color = "grey") +
     geom_line(size = .8) + 
     geom_hline(yintercept = 0.5, linetype = "dashed") +
@@ -244,6 +245,7 @@ fwrite(data_new_final, paste0(path,"bird_data_storage/models/model_prediction_in
 # 90619209 & 2019−07−08
 # 6415106 & 2019−07−28
 # 90619323 & 2021−04−21
+# V188907 & 2020−06−07
 
 df_10min<- fread(paste0(path, "bird_data_storage/tags_10_min_for_plotting.csv"), stringsAsFactors = T)
 data_new<- fread(paste0(path,"bird_data_storage/models/model_prediction_individuals.csv"), stringsAsFactors=T)
@@ -254,7 +256,8 @@ df_1min$date_f <- as.factor(as.character(df_1min$date_f))
 data_new<- data_new %>% 
   filter(ring_ID!="90619209" & date_f!="2019−07−08") %>% 
   filter(ring_ID!="6415106" & date_f!="2019−07−28") %>% 
-  filter(ring_ID!="90619323" & date_f!="2019−07−08")  #more?!
+  filter(ring_ID!="90619323" & date_f!="2019−07−08") %>% 
+  filter(ring_ID!="V188907" & date_f!="2020−06−07")#more?!
 
 
 data_new_agg<- data_new %>% 
@@ -420,6 +423,7 @@ fwrite(df_act_charac, paste0(path,"bird_data_storage/activity_characteristics/ac
 ###### plot per Individual AND date in one pdf (for Evaluation of steepest_de/ascent only!)
 
 plot_list<- list()
+count<- 0
 
 for(i in 1:nlevels(data_new$ring_ID)){ #nlevels(data_new$ring_ID)
   
@@ -445,12 +449,11 @@ for(i in 1:nlevels(data_new$ring_ID)){ #nlevels(data_new$ring_ID)
   
   name<- paste0(as.character(df$ring_ID[1]),
                # " | ", as.character(df$species_en[1]),
-                " | date=", as.character(df_date$date_f[1])
+                " | date=", as.character(df_date$date_f[1]),
+                " | AUC=", as.character(round(df_act_charac_sub$auc[1], digits=2))
                )
   
-  p<- df %>% 
-    group_by(time_to_rise_std) %>% 
-    summarise_each(funs(mean)) %>% 
+  p<- df_date %>%
     ggplot(data = ., 
            aes(x = time_to_rise_std, y = mu))+
     geom_ribbon(aes(ymin = ci_lower ,
@@ -458,8 +461,8 @@ for(i in 1:nlevels(data_new$ring_ID)){ #nlevels(data_new$ring_ID)
                 fill = "grey", color = "grey") +
     geom_line(size = .8) + 
     geom_hline(yintercept = 0.5, linetype = "dashed") +
-    geom_hline(yintercept = df_act_charac_sub$peak_act, linetype = "dashed", color="steelblue", size=1) +
-    geom_text(data= df_act_charac_sub, aes(x=-3.5, label="peak activity", y=peak_act), colour="steelblue", angle=0, vjust = 1.1, text=element_text(size=11))+  
+    geom_hline(yintercept = df_act_charac_sub$peak_act.x, linetype = "dashed", color="steelblue", size=1) +
+    geom_text(data= df_act_charac_sub, aes(x=-3.5, label="peak activity", y=peak_act.x), colour="steelblue", angle=0, vjust = 1.1, text=element_text(size=11))+  
     geom_vline(xintercept = 0, linetype = "dashed", color="orange", size=1)+
     geom_text(aes(x=0, label="sunrise", y=0), colour="orange", angle=0, hjust = -0.1, text=element_text(size=11))+
     geom_vline(xintercept = 15.51328, linetype = "dashed", color="navy",  size=1) +
@@ -474,13 +477,33 @@ for(i in 1:nlevels(data_new$ring_ID)){ #nlevels(data_new$ring_ID)
     ylim(0, 1)+
     ggtitle(name)
   
-  plot_list[[i]] <-p
+  count<- count+1
+  
+  plot_list[[count]] <-p
   }
 }
 
 ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "activity_characteristics_individual" , ".pdf"),
        plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1), 
        width = 15, height = 9)
+
+
+
+
+
+
+data_new_lst<- split(data_new, list(data_new$ring_ID, data_new$date_f),drop=T)
+
+data_new_lst<- lapply(data_new_lst, function(x){
+  df<-x
+  p<- ggplot(data = df, 
+           aes(x = time_to_rise_std, y = mu))+
+    geom_ribbon(aes(ymin = ci_lower ,
+                    ymax = ci_upper), 
+                fill = "grey", color = "grey") +
+    geom_line(size = .8) 
+})
+
 
 
 
