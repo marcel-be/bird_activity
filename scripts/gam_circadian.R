@@ -367,7 +367,7 @@ ggplot(data = .,
   #theme(legend.position = c(0.85,0.88))+
   theme(legend.position = "none") +
   facet_wrap(~species_en)
-ggsave(filename = paste0(path, "plots/model_output/" , "circadian_ID" , ".png"),
+ggsave(filename = paste0(path, "plots/model_output/individual_specific model/" , "circadian_ID" , ".png"),
        plot=p, width = 15, height = 9)
 
 
@@ -392,7 +392,7 @@ ggplot(data = .,
   ylab("Activity probability \n") + 
   ylim(0, 1) +
   theme(legend.position = c(0.85,0.88))
-ggsave(filename = paste0(path, "plots/model_output/" , "circadian_species" , ".png"),
+ggsave(filename = paste0(path, "plots/model_output/individual_specific model/" , "circadian_species" , ".png"),
        plot=p, width = 15, height = 9)
 
 ## activity across year (only working if "date_f" is defined in "data_new":
