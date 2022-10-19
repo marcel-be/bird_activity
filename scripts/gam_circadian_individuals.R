@@ -253,31 +253,42 @@ data_new$date_f<- as.factor(as.character(data_new$date_f))
 df_1min<- fread(paste0(path, "bird_data_storage/tags_1_min_for_analysis.csv"), stringsAsFactors = T)
 df_1min$date_f <- as.factor(as.character(df_1min$date_f))
 
-data_new<- data_new %>% 
-  filter(ring_ID!="90619209" & date_f!="2019−07−08") %>% 
-  filter(ring_ID!="6415106" & date_f!="2019−07−28") %>% 
-  filter(ring_ID!="90619323" & date_f!="2019−07−08") %>% 
-  filter(ring_ID!="V188907" & date_f!="2020−06−07")#more?!
-
+data_new_agg<- data_new %>% 
+  group_by(species_en, time_to_rise_std) %>% 
+  summarise(sd = sd(mu),
+            mu = mean(mu),
+            n  = n()) %>% 
+  mutate(se= sd / sqrt(n),
+         ci_lower = mu - 1.96 * se,
+         ci_upper = mu + 1.96 * se,
+         ring_ID=NA)
 
 data_new_agg<- data_new %>% 
   group_by(species_en, time_to_rise_std) %>% 
   summarise_each(funs(mean))
-
-## at individual level (one curve per individual)
+# which "data_new_agg" to use?
+  
+  
+# at individual level (one curve per individual)
 p<- data_new %>% 
   group_by(species_en, ring_ID, time_to_rise_std) %>% 
   summarise_each(funs(mean)) %>% 
   ggplot(data = ., 
          aes(x = time_to_rise_std, y = mu, 
              color = ring_ID, group = ring_ID))+
-  geom_ribbon(aes(ymin = ci_lower ,
+  geom_ribbon(data=data_new_agg, 
+              aes(ymin = ci_lower ,
                   ymax = ci_upper), 
-              fill = "grey", color = "grey", alpha=0.6) +
+              fill = "grey", color = "grey", alpha=0.6)+
+  #geom_ribbon(aes(ymin = ci_lower ,
+  #                ymax = ci_upper), 
+  #            fill = "grey", color = "grey", alpha=0.6) +
   #geom_point(data=df_10min, alpha = .1, 
   #           aes(x = time_to_rise_std, y = n_active/n_intervals)) +
   geom_line(size = .7) +
-  #geom_line(data=data_new_agg, aes(x = time_to_rise_std, y = mu), color="black", size=1.1, alpha=0.5)+
+  geom_line(data =data_new_agg, 
+            aes(x = time_to_rise_std, y = mu), 
+            color="black", size=1.1, alpha=0.5)+
   geom_hline(yintercept = 0.5, linetype = "dashed") +
   #scale_color_wsj() +
   theme_bw(14) +
@@ -289,13 +300,6 @@ p<- data_new %>%
   facet_wrap(~species_en)
 ggsave(filename = paste0(path, "plots/model_output/date_specific_models/" , "circadian_ID" , ".png"),
        plot=p, width = 15, height = 9)
-
-
-data_new_agg2 <- data_new_agg[seq(1, nrow(data_new_agg),10), ] 
-
-p<- ggplot(data_new_agg2, aes(x = time_to_rise_std, y = mu))+
-  geom_line()+
-  facet_wrap(~species_en)
 
 
 #################################################################################################################################
@@ -384,6 +388,14 @@ df5<- data_new_diff %>%
   as.data.frame() %>% 
   left_join(df4,., by=c("ring_ID","date_f"))
 
+bla2<- data_new_diff %>% 
+  filter(ring_ID!="6415101" | date_f!="2020−05−28")
+bla<- data_new_diff %>% 
+  filter(ring_ID=="6415101" & date_f=="2020−05−28")
+
+nrow(bla) + nrow(bla2)
+
+
 # steepest_descend
 df6<- data_new_diff %>% 
   group_by(ring_ID, date_f)  %>% 
@@ -447,10 +459,10 @@ for(i in 1:nlevels(data_new$ring_ID)){ #nlevels(data_new$ring_ID)
     droplevels() #%>% 
    # summarise_each(funs(mean))
   
-  name<- paste0(as.character(df$ring_ID[1]),
+  name<- paste0("ring_ID=",as.character(df$ring_ID[1]),
                # " | ", as.character(df$species_en[1]),
-                " | date=", as.character(df_date$date_f[1]),
-                " | AUC=", as.character(round(df_act_charac_sub$auc[1], digits=2))
+                " | date_f==",as.character(df_date$date_f[1]),
+                " | AUC==", as.character(round(df_act_charac_sub$auc[1], digits=2))
                )
   
   p<- df_date %>%
@@ -461,8 +473,8 @@ for(i in 1:nlevels(data_new$ring_ID)){ #nlevels(data_new$ring_ID)
                 fill = "grey", color = "grey") +
     geom_line(size = .8) + 
     geom_hline(yintercept = 0.5, linetype = "dashed") +
-    geom_hline(yintercept = df_act_charac_sub$peak_act.x, linetype = "dashed", color="steelblue", size=1) +
-    geom_text(data= df_act_charac_sub, aes(x=-3.5, label="peak activity", y=peak_act.x), colour="steelblue", angle=0, vjust = 1.1, text=element_text(size=11))+  
+    geom_hline(yintercept = df_act_charac_sub$peak_act, linetype = "dashed", color="steelblue", size=1) +
+    geom_text(data= df_act_charac_sub, aes(x=-3.5, label="peak activity", y=peak_act), colour="steelblue", angle=0, vjust = 1.1, text=element_text(size=11))+  
     geom_vline(xintercept = 0, linetype = "dashed", color="orange", size=1)+
     geom_text(aes(x=0, label="sunrise", y=0), colour="orange", angle=0, hjust = -0.1, text=element_text(size=11))+
     geom_vline(xintercept = 15.51328, linetype = "dashed", color="navy",  size=1) +
@@ -490,10 +502,7 @@ ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "activity_cha
 
 
 
-
-
 data_new_lst<- split(data_new, list(data_new$ring_ID, data_new$date_f),drop=T)
-
 data_new_lst<- lapply(data_new_lst, function(x){
   df<-x
   p<- ggplot(data = df, 
