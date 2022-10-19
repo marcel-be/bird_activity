@@ -310,7 +310,7 @@ ggsave(filename = paste0(path, "plots/model_output/date_specific_models/" , "cir
 ## 1. activity at time_to_rise_std = 0
 df1<- data_new %>% 
   filter(time_to_rise_std == 0) %>% 
-  group_by(ring_ID, date_f) %>% 
+  group_by(species_en, ring_ID, date_f) %>% 
   summarise(act_at_sunrise_mean = mu)
 
 
@@ -495,7 +495,7 @@ for(i in 1:nlevels(data_new$ring_ID)){ #nlevels(data_new$ring_ID)
   }
 }
 
-ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "activity_characteristics_individual" , ".pdf"),
+ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "activity_characteristics_individual_per_date" , ".pdf"),
        plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1), 
        width = 15, height = 9)
 
@@ -573,7 +573,7 @@ for(i in 1:nlevels(data_new$ring_ID)){ #nlevels(data_new$ring_ID)
   plot_list[[i]] <-p
 }
 
-ggsave(filename = paste0(path, "plots/model_output/date_specific model" , "activity_characteristics" , ".pdf"),
+ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "activity_characteristics_individual" , ".pdf"),
        plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1), 
        width = 15, height = 9)
 

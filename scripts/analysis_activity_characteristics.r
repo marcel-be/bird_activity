@@ -11,13 +11,15 @@ path<- "J:/rts/rts_activity/"
 
 # Data preperation ####
 
-df<- fread(paste0(path,"bird_data_storage/activity_characteristics/activity_characteristics.csv"), stringsAsFactors = T)
+df<- fread(paste0(path,"bird_data_storage/activity_characteristics/activity_characteristics_individual.csv"), stringsAsFactors = T)
 df$date_f<- as.factor(as.character(df$date_f))
 str(df)
 
+# just in case subset is needed:
 df<- df %>%   
   filter(ring_ID != "90850007")
-
+df<- df %>%   
+  filter(ring_ID != "90850007")
   filter(ring_ID != "90850086")%>%   
   filter(ring_ID != "90619209") %>% 
   filter(ring_ID != "90619211") %>% 
@@ -51,7 +53,6 @@ for(i in 1:nlevels(df$species_en)){
 
 
 df_agg_ind <- df_vca %>% 
-  select(ring_ID, species_en, act_at_sunrise_mean, steepest_ascend, steepest_descend , ring_ID_num) %>% 
   group_by(ring_ID,species_en) %>% 
   summarise(mean_start=mean(steepest_ascend),
             mean_end=mean(steepest_descend),
@@ -59,7 +60,8 @@ df_agg_ind <- df_vca %>%
             sd_end=sd(steepest_descend),
             ring_ID_num= mean(ring_ID_num),
             mean_act_at_sunrise = mean(act_at_sunrise_mean),
-            sd_act_at_sunrise = sd(act_at_sunrise_mean))
+            sd_act_at_sunrise = sd(act_at_sunrise_mean),
+            n=n())
 
 df_agg_spec <- df %>% 
   select(ring_ID, species_en, act_at_sunrise_mean, steepest_ascend, steepest_descend ) %>% 
@@ -73,8 +75,13 @@ df_agg_spec <- df %>%
 df_plot <- rbind(df_agg_ind, df_agg_spec)
 df_plot$species_ID <-  as.numeric(df_plot$species_en)
 
-
-
+##############################################################################
+# plotting some diagnistics
+ggplot(df_agg_ind, aes(y=sd_start, x=n, group=species_en, color=species_en))+
+  geom_point()+
+  facet_wrap(~species_en)
+cor(df_agg_ind$sd_start, df_agg_ind$n)
+summary(lm(sd_start~n*species_en, data=df_agg_ind))
 
 ##############################################################################
 # plotting activity onset ####
@@ -187,9 +194,13 @@ df %>%
   summarise(mean = mean(steepest_descend),
             sd = sd(steepest_descend)) %>%   
   ggplot(data=., aes(y = fct_reorder(species_en, mean), x = mean, group=species_en, color=species_en)) +
-  geom_point(size=2) +
-  geom_point(data=df_agg, aes(y= species_en,x = steepest_descend), col="black")+
-  geom_pointrange(aes(xmin = mean-sd, xmax = mean+sd), size=1) +
+  #geom_point(size=3) +
+  geom_pointrange(aes(xmin = mean-sd, xmax = mean+sd), size=1.2) +
+  #geom_point(data=df_agg_ind, aes(y = species_en,x = mean_start, group=species_en, color=species_en), position=position_jitter(width=0, height=0.5))+
+  geom_pointrange(data= df_agg_ind, aes(y = fct_reorder(species_en, ring_ID_num), x = mean_end, xmin = mean_end-sd_end, xmax = mean_end+sd_end), size=0.3, orientation="y", position=position_jitter(width=0, height=0.5)) +
+  #scale_color_brewer(palette="Dark2")+
+  #scale_color_viridis(discrete = TRUE, option = "C")+
+  scale_colour_scico_d(palette = 'vikO')+
   theme_light() +
   theme(axis.text=element_text(size=12),
         axis.title=element_text(size=14,face="bold"),
@@ -303,7 +314,7 @@ summary(glmmTMB(steepest_ascend ~ species_en + (1|ring_ID), data=df))
 library(VCA)
 df_vca<- as.data.frame(df_vca)
 
-vca <-  fitVCA(act_at_sunset_mean ~ species_en/ring_ID, df_vca , method="anova")
+vca <-  fitVCA(steepest_ascend ~ species_en/ring_ID, df_vca , method="anova")
 vca
 inf <- VCAinference(vca, VarVC=TRUE)
 inf
