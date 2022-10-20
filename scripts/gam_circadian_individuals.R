@@ -391,9 +391,48 @@ df5<- data_new_diff %>%
 bla2<- data_new_diff %>% 
   filter(ring_ID!="6415101" | date_f!="2020−05−28")
 bla<- data_new_diff %>% 
-  filter(ring_ID=="6415101" & date_f=="2020−05−28")
+  filter(ring_ID=="6412718" | date_f=="2020−05−07") %>%  # >14
+  filter(ring_ID=6415101 | date_f=2020−05−28) %>% # < -3
+  filter(ring_ID=6415104 | date_f=2020−05−31) %>% #>3 <5
+  filter(ring_ID=6415104 | date_f==2020−06−03) %>% #remove
+  filter(ring_ID=6415104 | date_f==2020−06−07) %>% #>0 <2
+  filter(ring_ID=6415105 | date_f==2020−06−16) %>% # >14
+  filter(ring_ID=7974327 | date_f==2019−06−13) %>% #<1
+  filter(ring_ID=7974327 | date_f==2020−05−05) %>% # >15
+  filter(ring_ID=7974327 | date_f==2020−05−20) %>% # >15
+  filter(ring_ID=7974327 | date_f==2020−06−29) %>% # >15
+  filter(ring_ID=7974405 | date_f==2021−05−31) %>% #exklude
+  filter(ring_ID=7974426 | date_f==2021−07−08) %>% # >-2 <0
+  filter(ring_ID=7974426 | date_f==2021−07−27) %>% # >15
+  filter(ring_ID=7974426 | date_f==2021−08−03) %>% #>-2 <0
+  filter(ring_ID=81948671 | date_f==2019−07−08) %>% #exclude
+  filter(ring_ID=81948671 | date_f==2019−07−28) %>% #>15
+  filter(ring_ID=81948728 | date_f==2019−07−28) %>% # >11 <14
+  filter(ring_ID=82298129 | date_f==2021−05−05) %>% # >7 <10
+  filter(ring_ID=82298129 | date_f==2021−05−06) %>% # exclude
+  filter(ring_ID=90619198 | date_f==2019−06−10) %>% # exclude
+  filter(ring_ID=90619198 | date_f==2019−06−09) %>% # exclude
+  filter(ring_ID=90619320 | date_f==2020−04−17) %>% #exclude
+  filter(ring_ID=90619323 | date_f==2020−06−03) %>% #>15
+  filter(ring_ID=90786807 | date_f==2021−07−30) %>% #>10  <14
+  filter(ring_ID=90786807 | date_f==2021−07−31) %>% #>10  <14
+  filter(ring_ID=90786807 | date_f==2021−08−01) %>% # >15
+  filter(ring_ID=90850007 | date_f==2020−05−02) %>% # >14
+  filter(ring_ID=90850008 | date_f==2020−05−11) %>% # <3 >-5
+  filter(ring_ID=90850019 | date_f==2021−04−03) %>% # >15
+  filter(ring_ID=90850019 | date_f==2021−04−08) %>% #> 15
+  filter(ring_ID=90850031 | date_f==2020−08−07) %>% # offset NA
+  filter(ring_ID=90850031 | date_f==2020−08−08) %>% # offset NA
+  filter(ring_ID=90850088 | date_f==2021−06−11) %>% # <0 >-2
+  filter(ring_ID=90850094 | date_f==2021−06−29) %>% #>15
+  filter(ring_ID=V188907 | date_f==2020−06−07) %>% #<15 >10
 
-nrow(bla) + nrow(bla2)
+  
+
+
+  
+  
+  nrow(bla) + nrow(bla2)
 
 
 # steepest_descend
@@ -430,7 +469,7 @@ df_act_charac <- df7
 
 ## safe file
 fwrite(df_act_charac, paste0(path,"bird_data_storage/activity_characteristics/activity_characteristics_individual.csv"))
-
+df_act_charac<- fread(paste0(path,"bird_data_storage/activity_characteristics/activity_characteristics_individual.csv"), stringsAsFactors = T)
 
 ###### plot per Individual AND date in one pdf (for Evaluation of steepest_de/ascent only!)
 
