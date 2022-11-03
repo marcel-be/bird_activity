@@ -8,9 +8,11 @@ library(ggplot2)
 library(hms)
 library(lubridate)
 library(tRackIT)
+library(itsadug)
 
 rm(list=ls())
 path<- "J:/rts/rts_activity/"
+path<- "G:/rts_activity/"
 
 #############################################################################################################################
 #### 1.1.   Save all 2021 A/P data in one folder (only once) ####
@@ -434,7 +436,8 @@ df_1_min_all_meta_4 <- df %>%
 
 df_1_min_all_meta_5<- df_1_min_all_meta_4 %>% 
   mutate(daylength = sunset - sunrise,
-         time_to_rise_std = (as.numeric(mean(daylength)) / as.numeric(daylength)) * time_to_rise) # multiply the time to/since sunset with the quotient of mean daylength and the actual daylength (on shorter days, the time to sunrise becomes a bit longer and vice versa)
+         time_to_rise_std = (as.numeric(mean(daylength)) / as.numeric(daylength)) * time_to_rise,
+         time_to_set_std = (as.numeric(mean(daylength)) / as.numeric(daylength)) * time_to_set) # multiply the time to/since sunset with the quotient of mean daylength and the actual daylength (on shorter days, the time to sunrise becomes a bit longer and vice versa)
 
 #### 3.8. Exclude day of capture
 
@@ -467,6 +470,9 @@ fwrite(df_1_min_all_meta_8, paste0(path,"bird_data_storage/tags_1min_withmeta.cs
 
 ##########################################################################
 #### 4. Create subset for GAM Analysis
+
+df_1min<- df_1_min_all_meta_8
+df_1min<- fread(paste0(path,"bird_data_storage/tags_1min_withmeta.csv"))
 
 ## 4.1 pool woodpecker species
 df_1min$species_en<- gsub("Black_Woodpecker", "woodpecker",

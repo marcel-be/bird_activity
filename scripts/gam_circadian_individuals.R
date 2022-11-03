@@ -312,7 +312,7 @@ ggsave(filename = paste0(path, "plots/model_output/date_specific_models/" , "cir
 df1<- data_new %>% 
   filter(time_to_rise_std == 0) %>% 
   group_by(species_en, ring_ID, date_f) %>% 
-  summarise(act_at_sunrise_mean = mu)
+  summarise(act_at_sunrise = mu)
 
 
 ## 2. Peak activity: what is the highest value for p(activity)?
@@ -396,6 +396,8 @@ df5<- data_new_diff %>%
                    ring_ID=="6415104" & date_f=="2020-06-07" ~ time_to_rise_std >= -2 & time_to_rise_std <= 2, # <0 >-2
                    ring_ID=="7974327" & date_f=="2020-04-21" ~ time_to_rise_std >= -2 & time_to_rise_std <= 1, #
                    ring_ID=="7974327" & date_f=="2020-04-19" ~ time_to_rise_std >= -2 & time_to_rise_std <= 1, #
+                   ring_ID=="90850086" & date_f=="2021-06-10" ~ time_to_rise_std >= 2 & time_to_rise_std <= 7, 
+                   ring_ID=="90850086" & date_f=="2021-06-11" ~ time_to_rise_std >= 2 & time_to_rise_std <= 7, 
                    T ~ time_to_rise_std >= -1.5 & time_to_rise_std <= 2.25)
   ) %>% 
   filter(diff == max(diff,na.rm=TRUE)) %>% 
@@ -430,6 +432,7 @@ df6<- data_new_diff %>%
                    ring_ID=="7974408" & date_f=="2021-04-21" ~ time_to_rise_std >= 13.5 & time_to_rise_std <= 16,
                    ring_ID=="7974426" & date_f=="2021-07-11" ~ time_to_rise_std >= 14 & time_to_rise_std <= 16,
                    ring_ID=="7974426" & date_f=="2021-07-22" ~ time_to_rise_std >= 14 & time_to_rise_std <= 16,
+                   ring_ID=="90850031" & date_f=="2020-08-03" ~ time_to_rise_std >= 14 & time_to_rise_std <= 16,
                    T ~ time_to_rise_std >= 13 & time_to_rise_std <= 17)
   )%>% 
   filter(diff == min(diff,na.rm=TRUE)) %>% 
@@ -441,11 +444,15 @@ df6[(df6$ring_ID=="90850031" & df6$date_f=="2020-08-07"),]$steepest_descend <- N
 df6[(df6$ring_ID=="90850031" & df6$date_f=="2020-08-08"),]$steepest_descend <- NA # set offset NA, because it makes no sense for this date
 df6[(df6$ring_ID=="7974327" & df6$date_f=="2019-06-22"),]$steepest_descend <- NA
 df6[(df6$ring_ID=="7974426" & df6$date_f=="2021-07-30"),]$steepest_descend <- NA
-
-
-############
-## 320
-############
+df6[(df6$ring_ID=="81948728" & df6$date_f=="2019-07-28"),]$steepest_descend <- NA
+df6[(df6$ring_ID=="82298125" & df6$date_f=="2019-04-11"),]$steepest_descend <- NA
+df6[(df6$ring_ID=="82298129" & df6$date_f=="2021-05-05"),]$steepest_descend <- NA
+df6[(df6$ring_ID=="82298129" & df6$date_f=="2021-05-06"),]$steepest_descend <- NA
+df6[(df6$ring_ID=="90619320" & df6$date_f=="2020-04-12"),]$steepest_descend <- NA
+df6[(df6$ring_ID=="90786807" & df6$date_f=="2021-07-30"),]$steepest_descend <- NA
+df6[(df6$ring_ID=="90850086" & df6$date_f=="2021-06-02"),]$steepest_descend <- NA
+df6[(df6$ring_ID=="90850086" & df6$date_f=="2021-06-02"),]$steepest_ascend <- NA
+df6[(df6$ring_ID=="90850086" & df6$date_f=="2021-06-06"),]$steepest_ascend <- NA
 
 
 
@@ -478,9 +485,14 @@ df8<- df8[-which(df8$ring_ID=="90619198" & df8$date_f=="2019-06-10"),]
 df8<- df8[-which(df8$ring_ID=="90619198" & df8$date_f=="2019-06-09"),]
 df8<- df8[-which(df8$ring_ID=="90619320" & df8$date_f=="2020-04-17"),]
 df8<- df8[-which(df8$ring_ID=="6415104"  & df8$date_f=="2020-06-03"),]
+df8<- df8[-which(df8$ring_ID=="V188907"  & df8$date_f=="2020-06-07"),]
 
+# 10. calculate relative activity at sunrise 
+# Activity at sunrise is divided by total activity (AUC) to allow for comparability across individuals
 
-df_act_charac <- df8
+df9<- df8$
+
+df_act_charac <- df9
 
 ## safe file
 fwrite(df_act_charac, paste0(path,"bird_data_storage/activity_characteristics/activity_characteristics_individual.csv"))
