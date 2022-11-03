@@ -10,7 +10,8 @@ library(tRackIT)
 library(DHARMa)
 library(itsadug)
 
-path<- "J:/rts/rts_activity/"
+#path<- "J:/rts/rts_activity/"
+path<- "G:/rts_activity/"
 
 ##################################################################################################################
 #### 1. Data import:
@@ -329,9 +330,9 @@ df3<- data_new %>%
   as.data.frame() %>% 
   left_join(df2,., by=c("ring_ID","date_f"))
 
-## 5. Peak activity timing: time of day with maximum p(activity) --> makes little sense as the curves are very wobbly
+## 4. Peak activity timing: time of day with maximum p(activity) --> makes little sense as the curves are very wobbly
 
-## 6. area under the curve?
+## 5. area under the curve?
 
 data_new_lst<- split(data_new, list(data_new$ring_ID, data_new$date_f),drop=T)
 
@@ -349,7 +350,7 @@ df4<- df_auc %>%
 
 
 
-## 7. finding maximum and minimum slope (potential measures for "start" and "end" of activity)
+## 6. finding maximum and minimum slope (potential measures for "start" and "end" of activity)
 
 #  calculate differences (increase) in mu for each datapoint for each bird and date (in comparison to the respective, former datapoint) --> highest value for this difference represents the strongest increase in mu ergo the highest slope of the activity slope
 # "diff"-function calculates the difference to the former datapoint
@@ -379,73 +380,76 @@ for(i in 1:nlevels(data_new$ring_ID)){ # find a nicer, vectorized approach! (Pro
   }
 }
 
+## a visual inspection of the produced values for the steepest ascend and descend showed that the range of daytime (in hours to sunrise) in which the steepest ascend or descend is chosen as activity start or end, differs for some days (the activity starts later or earlier, compared to average), these days must be filtered separately to get the correct values --> The highest "diff" is not always within the range of  [time_to_rise_std >= -1.5 & time_to_rise_std <= 2.25] or [time_to_rise_std >= 13 & time_to_rise_std <= 17]
+
 # steepest_ascend:
 df5<- data_new_diff %>% 
   group_by(ring_ID, date_f) %>% 
-  filter(time_to_rise_std >= -1.5 & time_to_rise_std <= 2.25)%>% 
+  filter(case_when(ring_ID=="6415101" & date_f=="2020-05-28"  ~ time_to_rise_std <= -3,# < -3
+                   ring_ID=="6415104" & date_f=="2020-05-31"  ~ time_to_rise_std >=  3 & time_to_rise_std <= 5,#>3 <5
+                   ring_ID=="6415104" & date_f=="2020-06-07"  ~ time_to_rise_std >=  0 & time_to_rise_std <= 2,#>0 <2
+                   ring_ID=="7974327" & date_f=="2019-06-13"  ~ time_to_rise_std <=  1, #<1  
+                   ring_ID=="7974426" & date_f=="2021-07-08"  ~ time_to_rise_std >= -2 & time_to_rise_std <= 0, # >-2 <0
+                   ring_ID=="90850008" & date_f=="2020-05-11" ~ time_to_rise_std >= -5 & time_to_rise_std <= 3, # <3 >-5
+                   ring_ID=="7974426" & date_f=="2021-08-03"  ~ time_to_rise_std >= -2 & time_to_rise_std <= 0, #>-2 <0
+                   ring_ID=="90850088" & date_f=="2021-06-11" ~ time_to_rise_std >= -2 & time_to_rise_std <= 0, # <0 >-2
+                   ring_ID=="6415104" & date_f=="2020-06-07" ~ time_to_rise_std >= -2 & time_to_rise_std <= 2, # <0 >-2
+                   ring_ID=="7974327" & date_f=="2020-04-21" ~ time_to_rise_std >= -2 & time_to_rise_std <= 1, #
+                   ring_ID=="7974327" & date_f=="2020-04-19" ~ time_to_rise_std >= -2 & time_to_rise_std <= 1, #
+                   T ~ time_to_rise_std >= -1.5 & time_to_rise_std <= 2.25)
+  ) %>% 
   filter(diff == max(diff,na.rm=TRUE)) %>% 
   summarise(steepest_ascend = time_to_rise_std) %>% 
   as.data.frame() %>% 
   left_join(df4,., by=c("ring_ID","date_f"))
 
-bla2<- data_new_diff %>% 
-  filter(ring_ID!="6415101" | date_f!="2020−05−28")
-bla<- data_new_diff %>% 
-  filter(ring_ID=="6412718" | date_f=="2020−05−07") %>%  # >14
-  filter(ring_ID=6415101 | date_f=2020−05−28) %>% # < -3
-  filter(ring_ID=6415104 | date_f=2020−05−31) %>% #>3 <5
-  filter(ring_ID=6415104 | date_f==2020−06−03) %>% #remove
-  filter(ring_ID=6415104 | date_f==2020−06−07) %>% #>0 <2
-  filter(ring_ID=6415105 | date_f==2020−06−16) %>% # >14
-  filter(ring_ID=7974327 | date_f==2019−06−13) %>% #<1
-  filter(ring_ID=7974327 | date_f==2020−05−05) %>% # >15
-  filter(ring_ID=7974327 | date_f==2020−05−20) %>% # >15
-  filter(ring_ID=7974327 | date_f==2020−06−29) %>% # >15
-  filter(ring_ID=7974405 | date_f==2021−05−31) %>% #exklude
-  filter(ring_ID=7974426 | date_f==2021−07−08) %>% # >-2 <0
-  filter(ring_ID=7974426 | date_f==2021−07−27) %>% # >15
-  filter(ring_ID=7974426 | date_f==2021−08−03) %>% #>-2 <0
-  filter(ring_ID=81948671 | date_f==2019−07−08) %>% #exclude
-  filter(ring_ID=81948671 | date_f==2019−07−28) %>% #>15
-  filter(ring_ID=81948728 | date_f==2019−07−28) %>% # >11 <14
-  filter(ring_ID=82298129 | date_f==2021−05−05) %>% # >7 <10
-  filter(ring_ID=82298129 | date_f==2021−05−06) %>% # exclude
-  filter(ring_ID=90619198 | date_f==2019−06−10) %>% # exclude
-  filter(ring_ID=90619198 | date_f==2019−06−09) %>% # exclude
-  filter(ring_ID=90619320 | date_f==2020−04−17) %>% #exclude
-  filter(ring_ID=90619323 | date_f==2020−06−03) %>% #>15
-  filter(ring_ID=90786807 | date_f==2021−07−30) %>% #>10  <14
-  filter(ring_ID=90786807 | date_f==2021−07−31) %>% #>10  <14
-  filter(ring_ID=90786807 | date_f==2021−08−01) %>% # >15
-  filter(ring_ID=90850007 | date_f==2020−05−02) %>% # >14
-  filter(ring_ID=90850008 | date_f==2020−05−11) %>% # <3 >-5
-  filter(ring_ID=90850019 | date_f==2021−04−03) %>% # >15
-  filter(ring_ID=90850019 | date_f==2021−04−08) %>% #> 15
-  filter(ring_ID=90850031 | date_f==2020−08−07) %>% # offset NA
-  filter(ring_ID=90850031 | date_f==2020−08−08) %>% # offset NA
-  filter(ring_ID=90850088 | date_f==2021−06−11) %>% # <0 >-2
-  filter(ring_ID=90850094 | date_f==2021−06−29) %>% #>15
-  filter(ring_ID=V188907 | date_f==2020−06−07) %>% #<15 >10
-
-  
-
-
-  
-  
-  nrow(bla) + nrow(bla2)
-
 
 # steepest_descend
 df6<- data_new_diff %>% 
   group_by(ring_ID, date_f)  %>% 
-  filter(time_to_rise_std >= 13 & time_to_rise_std <= 17)%>% 
+  filter(case_when(ring_ID=="6412718" & date_f=="2020-05-07"  ~ time_to_rise_std >= 14,  # >14
+                   ring_ID=="6415105" & date_f=="2020-06-16"  ~ time_to_rise_std >= 14, # >14
+                   ring_ID=="7974327" & date_f=="2020-05-05"  ~ time_to_rise_std >= 15,# >15
+                   ring_ID=="7974327" & date_f=="2020-05-20"  ~ time_to_rise_std >= 15, # >15
+                   ring_ID=="7974327" & date_f=="2020-06-29"  ~ time_to_rise_std >= 15, # >15
+                   ring_ID=="7974426" & date_f=="2021-07-27"  ~ time_to_rise_std >= 15, # >15
+                   ring_ID=="81948671" & date_f=="2019-07-28" ~ time_to_rise_std >= 15, #>15
+                   ring_ID=="81948728" & date_f=="2019-07-28" ~ time_to_rise_std >= 11 & time_to_rise_std <= 14, # >11 <14
+                   ring_ID=="90619323" & date_f=="2020-06-03" ~ time_to_rise_std >= 15, #>15
+                   ring_ID=="90786807" & date_f=="2021-08-01" ~ time_to_rise_std >= 15, # >15
+                   ring_ID=="90786807" & date_f=="2021-07-30" ~ time_to_rise_std >= 10 & time_to_rise_std <= 14, #>10  <14
+                   ring_ID=="90786807" & date_f=="2021-07-31" ~ time_to_rise_std >= 10 & time_to_rise_std <= 14, #>10  <14
+                   ring_ID=="82298129" & date_f=="2021-05-05" ~ time_to_rise_std >= 7 & time_to_rise_std <= 10, # >7 <10
+                   ring_ID=="90850007" & date_f=="2020-05-02" ~ time_to_rise_std >= 14, # >14
+                   ring_ID=="90850019" & date_f=="2021-04-03" ~ time_to_rise_std >= 15, # >15
+                   ring_ID=="90850019" & date_f=="2021-04-08" ~ time_to_rise_std >= 15, #> 15
+                   ring_ID=="90850094" & date_f=="2021-06-29" ~ time_to_rise_std >= 15, #>15
+                   ring_ID=="V188907" & date_f=="2020-06-07" ~ time_to_rise_std >= 10 & time_to_rise_std <= 15, #<15 >10
+                   ring_ID=="7974327" & date_f=="2020-07-04" ~ time_to_rise_std >= 14.5 & time_to_rise_std <= 16, 
+                   ring_ID=="7974402" & date_f=="2020-04-28" ~ time_to_rise_std >= 14 & time_to_rise_std <= 16, 
+                   ring_ID=="7974408" & date_f=="2021-04-21" ~ time_to_rise_std >= 13.5 & time_to_rise_std <= 16,
+                   ring_ID=="7974426" & date_f=="2021-07-11" ~ time_to_rise_std >= 14 & time_to_rise_std <= 16,
+                   ring_ID=="7974426" & date_f=="2021-07-22" ~ time_to_rise_std >= 14 & time_to_rise_std <= 16,
+                   T ~ time_to_rise_std >= 13 & time_to_rise_std <= 17)
+  )%>% 
   filter(diff == min(diff,na.rm=TRUE)) %>% 
   summarise(steepest_descend = time_to_rise_std) %>% 
   as.data.frame() %>%  
   left_join(df5,., by=c("ring_ID","date_f"))
 
+df6[(df6$ring_ID=="90850031" & df6$date_f=="2020-08-07"),]$steepest_descend <- NA # set offset NA, because it makes no sense for this date
+df6[(df6$ring_ID=="90850031" & df6$date_f=="2020-08-08"),]$steepest_descend <- NA # set offset NA, because it makes no sense for this date
+df6[(df6$ring_ID=="7974327" & df6$date_f=="2019-06-22"),]$steepest_descend <- NA
+df6[(df6$ring_ID=="7974426" & df6$date_f=="2021-07-30"),]$steepest_descend <- NA
 
-# 8. Time of sunset of each date
+
+############
+## 320
+############
+
+
+
+# 7. Time of sunset of each date
 # can´t be used as the data was corrected for the mean daylength
 dfXX<- df_1min %>% 
   group_by(ring_ID, species_en, date_f) %>% 
@@ -455,7 +459,7 @@ dfXX<- df_1min %>%
   left_join(df11,., by=c("ring_ID","date_f")) 
 
 
-# 9. Activity at sunset
+# 8. Activity at sunset
 # the mean daylength that was used to standardize "time to rise" is 15.51328
 sunset<- data_new[which(abs(data_new$time_to_rise_std - 15.51328) == min(abs(data_new$time_to_rise_std - 15.51328)))]$time_to_rise_std[1]
 df7<- data_new %>% 
@@ -465,7 +469,18 @@ df7<- data_new %>%
   as.data.frame()  %>% 
   left_join(df6,., by=c("ring_ID","date_f"))
 
-df_act_charac <- df7
+# 9. remove certain days, based on visual observations of daily activity curves:
+
+df8<- df7[-which(df7$ring_ID=="81948671" & df7$date_f=="2019-07-08"),]
+df8<- df8[-which(df8$ring_ID=="7974405"  & df8$date_f=="2021-05-31"),]
+df8<- df8[-which(df8$ring_ID=="82298129" & df8$date_f=="2021-05-06"),]
+df8<- df8[-which(df8$ring_ID=="90619198" & df8$date_f=="2019-06-10"),]
+df8<- df8[-which(df8$ring_ID=="90619198" & df8$date_f=="2019-06-09"),]
+df8<- df8[-which(df8$ring_ID=="90619320" & df8$date_f=="2020-04-17"),]
+df8<- df8[-which(df8$ring_ID=="6415104"  & df8$date_f=="2020-06-03"),]
+
+
+df_act_charac <- df8
 
 ## safe file
 fwrite(df_act_charac, paste0(path,"bird_data_storage/activity_characteristics/activity_characteristics_individual.csv"))
@@ -551,7 +566,6 @@ data_new_lst<- lapply(data_new_lst, function(x){
                 fill = "grey", color = "grey") +
     geom_line(size = .8) 
 })
-
 
 
 
