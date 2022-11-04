@@ -472,7 +472,7 @@ sunset<- data_new[which(abs(data_new$time_to_rise_std - 15.51328) == min(abs(dat
 df7<- data_new %>% 
   filter(time_to_rise_std == sunset) %>% 
   group_by(ring_ID, date_f) %>% 
-  summarise(act_at_sunset_mean = mu) %>% 
+  summarise(act_at_sunset = mu) %>% 
   as.data.frame()  %>% 
   left_join(df6,., by=c("ring_ID","date_f"))
 
@@ -490,9 +490,12 @@ df8<- df8[-which(df8$ring_ID=="V188907"  & df8$date_f=="2020-06-07"),]
 # 10. calculate relative activity at sunrise 
 # Activity at sunrise is divided by total activity (AUC) to allow for comparability across individuals
 
-df9<- df8$
+df8$act_at_sunset_rel  <- df8$act_at_sunset / df8$auc
+df8$act_at_sunrise_rel <- df8$act_at_sunrise/ df8$auc
+  
+  
 
-df_act_charac <- df9
+df_act_charac <- df8
 
 ## safe file
 fwrite(df_act_charac, paste0(path,"bird_data_storage/activity_characteristics/activity_characteristics_individual.csv"))
