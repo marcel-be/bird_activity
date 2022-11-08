@@ -280,7 +280,7 @@ df %>%
   #geom_point(size=3) +
   geom_pointrange(aes(xmin = mean-sd, xmax = mean+sd), size=1.2) +
   #geom_point(data=df_agg_ind, aes(y = species_en,x = mean_start, group=species_en, color=species_en), position=position_jitter(width=0, height=0.5))+
-  geom_pointrange(data= df_agg_ind, aes(y = fct_reorder(species_en, ring_ID_num), x = mean_auc, xmin = mean_auc-sd_auc, xmax = mean_auc+sd_auc), size=0.3, orientation="y", position=position_jitter(width=0, height=0.5)) +
+  geom_pointrange(data= df_agg_ind, aes(y = fct_reorder(species_en, mean_auc), x = mean_auc, xmin = mean_auc-sd_auc, xmax = mean_auc+sd_auc), size=0.3, orientation="y", position=position_jitter(width=0, height=0.5)) +
   scale_color_brewer(palette="Dark2")+
   #scale_color_viridis(discrete = TRUE, option = "C")+
   theme_light() +
@@ -313,9 +313,13 @@ summary(glmmTMB(steepest_ascend ~ species_en + (1|ring_ID), data=df))
 ## VCA Package 
 
 library(VCA)
-df_vca<- as.data.frame(df_vca)
+df<- as.data.frame(df)
 
-vca <-  fitVCA(steepest_ascend ~ species_en/ring_ID, df_vca , method="anova")
+vca <-  fitVCA(steepest_ascend ~ species_en/ring_ID, df , method="anova")
+vca <-  fitVCA(steepest_descend ~ species_en/ring_ID, df , method="anova")
+vca
+vca <-  fitVCA(auc ~ species_en/ring_ID, df , method="anova")
+vca
 vca
 inf <- VCAinference(vca, VarVC=TRUE)
 inf

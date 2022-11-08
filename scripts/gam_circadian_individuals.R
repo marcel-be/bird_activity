@@ -641,7 +641,7 @@ for(i in 1:nlevels(data_new$ring_ID)){ #nlevels(data_new$ring_ID)
   plot_list[[i]] <-p
 }
 
-ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "activity_characteristics_individual" , ".pdf"),
+ggsave(filename = paste0(path, "plots/model_output/diagnostics/activity_charcteristics/" , "activity_characteristics_individual" , ".pdf"),
        plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1), 
        width = 15, height = 9)
 
