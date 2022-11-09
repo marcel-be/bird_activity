@@ -50,7 +50,7 @@ df_plot <- rbind(df_agg_ind, df_agg_spec)
 df_plot$species_ID <-  as.numeric(df_plot$species_en)
 
 ##############################################################################
-# plotting some diagnistics
+# plotting some diagnostics
 ggplot(df_agg_ind, aes(y=sd_start, x=n, group=species_en, color=species_en))+
   geom_point()+
   facet_wrap(~species_en)
@@ -133,7 +133,7 @@ df %>%
         legend.position = "none")+
   #xlim(0, 1) +
   ylab("Species") +
-  xlab("Mean time of activity onset \n (centered around time of sunrise)")
+  xlab("Mean time of activity start \n (centered around time of sunrise)")
 
 ggsave(filename = paste0(path, "plots/model_output/analysis_activity/" , "activity_start_species" , ".png"),
        width = 8, height = 10)
@@ -199,6 +199,11 @@ ggplot(data=df, aes(y=E, x=fit))+
   facet_wrap(~species_en)
 plot(df$E~df$species_en)
 
+## Nested ANOVA
+act_start <- aov(df$steepest_descend ~ df$species_en / df$ring_ID)
+summary(act_start)
+car::Anova(act_start)
+
 
 ##############################################################################
 # plotting relative activity at sunrise ####
@@ -227,6 +232,11 @@ df %>%
 ggsave(filename = paste0(path, "plots/model_output/analysis_activity/" , "activity_sunrise_species" , ".png"),
        width = 8, height = 10)
 
+## Nested ANOVA
+act_start <- aov(df$act_at_sunrise_rel ~ df$species_en / df$ring_ID)
+summary(act_start)
+car::Anova(act_start)
+
 
 ##############################################################################
 # plotting relative activity  at sunset ####
@@ -252,8 +262,12 @@ df %>%
   ylab("Species") +
   xlab("Mean relative activity at sunset \n (centered around time of sunrise)")
 
-ggsave(filename = paste0(path, "plots/model_output/analysis_activity/" , "activity_sunrise_species" , ".png"),
+ggsave(filename = paste0(path, "plots/model_output/analysis_activity/" , "activity_sunset_species" , ".png"),
        width = 8, height = 10)
+
+act_start <- aov(df$act_at_sunset_rel ~ df$species_en / df$ring_ID)
+summary(act_start)
+car::Anova(act_start)
 
 
 
@@ -282,7 +296,9 @@ df %>%
 ggsave(filename = paste0(path, "plots/model_output/analysis_activity/" , "activity_AUC_species" , ".png"),
        width = 8, height = 10)
 
-
+act_start <- aov(df$auc ~ df$species_en / df$ring_ID)
+summary(act_start)
+car::Anova(act_start)
 
 
 ##############################################################################
@@ -293,20 +309,23 @@ ggsave(filename = paste0(path, "plots/model_output/analysis_activity/" , "activi
 ## VCA Package 
 
 library(VCA)
-
 df<- as.data.frame(df)
 
+
+## Activity start:
 vca <-  fitVCA(steepest_ascend ~ species_en/ring_ID, df , method="anova")
 vca
+inf <- VCAinference(vca, VarVC=TRUE)
+inf
+
+plotRandVar(vca, term="species_en:ring_ID", mode="student", pick=T) 
+abline(h=c(-3, 3), lty=2, col="red", lwd=2)
+mtext(side=4, at=c(-3, 3), col="red", line=.25, las=1, text=c(-3, 3))
+
+
+## Activity end:
 vca <-  fitVCA(steepest_descend ~ species_en/ring_ID, df , method="anova")
 vca
-vca <-  fitVCA(auc ~ species_en/ring_ID, df , method="anova")
-vca
-vca <-  fitVCA(act_at_sunrise_rel ~ species_en/ring_ID, df , method="anova")
-vca
-vca <-  fitVCA(act_at_sunset_rel ~ species_en/ring_ID, df , method="anova")
-vca
-
 
 inf <- VCAinference(vca, VarVC=TRUE)
 inf
@@ -314,13 +333,48 @@ inf
 plotRandVar(vca, term="species_en:ring_ID", mode="student", pick=T) 
 abline(h=c(-3, 3), lty=2, col="red", lwd=2)
 mtext(side=4, at=c(-3, 3), col="red", line=.25, las=1, text=c(-3, 3))
-############ CHECK
+
+
+## Activity sunrise
+vca <-  fitVCA(act_at_sunrise_rel ~ species_en/ring_ID, df , method="anova")
+vca
+
+inf <- VCAinference(vca, VarVC=TRUE)
+inf
+
+plotRandVar(vca, term="species_en:ring_ID", mode="student", pick=T) 
+abline(h=c(-3, 3), lty=2, col="red", lwd=2)
+mtext(side=4, at=c(-3, 3), col="red", line=.25, las=1, text=c(-3, 3))
+
+
+## Activity sunset
+vca <-  fitVCA(act_at_sunset_rel ~ species_en/ring_ID, df , method="anova")
+vca
+
+inf <- VCAinference(vca, VarVC=TRUE)
+inf
+
+plotRandVar(vca, term="species_en:ring_ID", mode="student", pick=T) 
+abline(h=c(-3, 3), lty=2, col="red", lwd=2)
+mtext(side=4, at=c(-3, 3), col="red", line=.25, las=1, text=c(-3, 3))
+
+
+## Activity total (AUC)
+vca <-  fitVCA(auc ~ species_en/ring_ID, df , method="anova")
+vca
+
+inf <- VCAinference(vca, VarVC=TRUE)
+inf
+
+plotRandVar(vca, term="species_en:ring_ID", mode="student", pick=T) 
+abline(h=c(-3, 3), lty=2, col="red", lwd=2)
+mtext(side=4, at=c(-3, 3), col="red", line=.25, las=1, text=c(-3, 3))
 
 
 
 
 
-### data structur with Numbers (1,2,3...) as individualID (not needed)
+### data structure with Numbers (1,2,3...) as individualID (not needed)
 df$ring_ID_num <- NA
 df_vca<- data.frame()
 num_vec<- seq(1:15)

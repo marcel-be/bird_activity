@@ -133,6 +133,7 @@ data_new_final<- data.frame()
 
 for(i in 1:nlevels(df_1min$ring_ID)){
   
+  print(i)
   print(levels(df_1min$ring_ID)[i])
   
   df<-  df_1min %>% 
@@ -210,7 +211,8 @@ for(i in 1:nlevels(df_1min$ring_ID)){
   plot_list[[a[i]]] <-p
   
   df <- df_10min %>%  
-    filter(ring_ID == levels(ring_ID)[i]) 
+    filter(ring_ID == levels(ring_ID)[i]) %>% 
+    droplevels()
   
   name<- paste0(as.character(df$species_en[1]),
                 " | brood patch=", as.character(df$brood_patch[1]),
@@ -225,14 +227,18 @@ for(i in 1:nlevels(df_1min$ring_ID)){
     facet_wrap(~ date_f) +
     #facet_wrap(~ ydate + coverage_daily, labeller = label_both) +
     theme_bw()+
-    ggtitle(paste0(levels(df_10min$ID)[i]," ", name))
+    ggtitle(paste0(levels(df$ID)[1]," ", name))
   
   plot_list[[b[i]]] <-p
 }
 
-ggsave(filename = paste0(path, "plots/model_output/" , "curve_by_individual" , ".pdf"),
+ggsave(filename = paste0(path, "plots/model_output/diagnostics/" , "curve_by_individual" , ".pdf"),
        plot = gridExtra::marrangeGrob(plot_list, nrow=1, ncol=1), 
        width = 15, height = 9)
+
+data_new_final<- data_new_final %>% 
+  filter(ring_ID!="90850086") %>% 
+  droplevels()
 
 ## save model predictions
 fwrite(data_new_final, paste0(path,"bird_data_storage/models/model_prediction_individuals.csv"))
@@ -456,6 +462,7 @@ df6[(df6$ring_ID=="90850086" & df6$date_f=="2021-06-06"),]$steepest_ascend <- NA
 
 
 
+
 # 7. Time of sunset of each date
 # can´t be used as the data was corrected for the mean daylength
 dfXX<- df_1min %>% 
@@ -486,6 +493,7 @@ df8<- df8[-which(df8$ring_ID=="90619198" & df8$date_f=="2019-06-09"),]
 df8<- df8[-which(df8$ring_ID=="90619320" & df8$date_f=="2020-04-17"),]
 df8<- df8[-which(df8$ring_ID=="6415104"  & df8$date_f=="2020-06-03"),]
 df8<- df8[-which(df8$ring_ID=="V188907"  & df8$date_f=="2020-06-07"),]
+
 
 # 10. calculate relative activity at sunrise 
 # Activity at sunrise is divided by total activity (AUC) to allow for comparability across individuals
