@@ -374,6 +374,7 @@ mtext(side=4, at=c(-3, 3), col="red", line=.25, las=1, text=c(-3, 3))
 
 
 
+
 ### data structure with Numbers (1,2,3...) as individualID (not needed)
 df$ring_ID_num <- NA
 df_vca<- data.frame()
