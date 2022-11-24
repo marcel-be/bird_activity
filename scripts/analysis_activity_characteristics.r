@@ -17,6 +17,8 @@ df<- fread(paste0(path,"bird_data_storage/activity_characteristics/activity_char
 df$date_f<- as.factor(as.character(df$date_f))
 str(df)
 
+df$active_time<- df$steepest_descend-df$steepest_ascend
+
 
 df_agg_ind <- df %>% 
   group_by(ring_ID,species_en) %>% 
@@ -30,10 +32,12 @@ df_agg_ind <- df %>%
             sd_act_at_sunset = sd(act_at_sunset_rel,na.rm = TRUE),
             mean_auc = mean(auc,na.rm = TRUE),
             sd_auc = sd(auc,na.rm = TRUE),
+            mean_active_time = mean(active_time, na.rm=TRUE),
+            sd_active_time = sd(active_time, na.rm=TRUE),
             n=n())
 
 df_agg_spec <- df %>% 
-  select(ring_ID, species_en, act_at_sunrise_rel, act_at_sunset_rel, steepest_ascend, steepest_descend ) %>% 
+  select(ring_ID, species_en, act_at_sunrise_rel, act_at_sunset_rel, steepest_ascend, steepest_descend, active_time ) %>% 
   group_by(species_en) %>% 
   summarise(mean_start=mean(steepest_ascend,na.rm = TRUE),
             mean_end=mean(steepest_descend,na.rm = TRUE),
@@ -43,6 +47,8 @@ df_agg_spec <- df %>%
             sd_sunrise = sd(act_at_sunrise_rel,na.rm = TRUE),
             mean_sunset = mean(act_at_sunset_rel,na.rm = TRUE),
             sd_sunset = sd(act_at_sunset_rel,na.rm = TRUE),
+            mean_active_time = mean(active_time, na.rm=TRUE),
+            sd_active_time = sd(active_time, na.rm=TRUE)
             ) %>% 
   mutate(ring_ID = "spec_mean")
 
@@ -300,6 +306,31 @@ act_start <- aov(df$auc ~ df$species_en / df$ring_ID)
 summary(act_start)
 car::Anova(act_start)
 
+##############################################################################
+# plotting daily activity time (activity end-activity start) ####
+
+df %>% 
+  group_by(species_en) %>% 
+  summarise(mean = mean(active_time,na.rm = TRUE),
+            sd = sd(active_time,na.rm = TRUE)) %>%   
+  ggplot(data=., aes(y = fct_reorder(species_en, mean), x = mean, group=species_en, color=species_en)) +
+  #geom_point(size=3) +
+  geom_pointrange(aes(xmin = mean-sd, xmax = mean+sd), size=1.2) +
+  #geom_point(data=df_agg_ind, aes(y = species_en,x = mean_start, group=species_en, color=species_en), position=position_jitter(width=0, height=0.5))+
+  geom_pointrange(data= df_agg_ind, aes(y = fct_reorder(species_en, mean_active_time), x = mean_active_time, xmin = mean_active_time-sd_active_time, xmax = mean_active_time+sd_active_time), size=0.3, orientation="y", position=position_jitter(width=0, height=0.5)) +
+  scale_color_brewer(palette="Dark2")+
+  #scale_color_viridis(discrete = TRUE, option = "C")+
+  theme_light() +
+  theme(axis.text=element_text(size=12),
+        axis.title=element_text(size=14,face="bold"),
+        legend.position = "none")+
+  #xlim(-1, 2) +
+  ylab("Species") +
+  xlab("Time of Activity [hours]")
+
+ggsave(filename = paste0(path, "plots/model_output/analysis_activity/" , "activity_time_species" , ".png"),
+       width = 8, height = 10)
+
 
 ##############################################################################
 # Variance Component Analysis ####
@@ -370,6 +401,17 @@ plotRandVar(vca, term="species_en:ring_ID", mode="student", pick=T)
 abline(h=c(-3, 3), lty=2, col="red", lwd=2)
 mtext(side=4, at=c(-3, 3), col="red", line=.25, las=1, text=c(-3, 3))
 
+
+## Activity time (daily)
+vca <-  fitVCA(active_time ~ species_en/ring_ID, df , method="anova")
+vca
+
+inf <- VCAinference(vca, VarVC=TRUE, ci.method="satterthwaite", claim.type="VC",alpha = 0.05,)
+inf
+
+plotRandVar(vca, term="species_en:ring_ID", mode="student", pick=T) 
+abline(h=c(-3, 3), lty=2, col="red", lwd=2)
+mtext(side=4, at=c(-3, 3), col="red", line=.25, las=1, text=c(-3, 3))
 
 
 
